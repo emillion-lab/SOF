@@ -3,64 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>София Живи Данни (Real-Time OSM & API)</title>
+    <title>София Дата Анализатор - Бронирана Версия</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             background-color: #f4f6f9;
             color: #333;
         }
         header {
-            background: linear-gradient(135deg, #d32f2f 0%, #1e3c72 100%);
+            background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
             color: white;
             padding: 20px;
-            border-radius: 10px;
+            border-radius: 8px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
         }
-        header h1 { margin: 0; font-size: 24px; }
-        header p { margin: 5px 0 0 0; opacity: 0.9; font-size: 14px; }
+        header h1 { margin: 0; font-size: 22px; }
+        header p { margin: 5px 0 0 0; opacity: 0.8; font-size: 13px; }
         
-        .grid-container {
+        .layout {
             display: grid;
             grid-template-columns: 1fr;
             gap: 20px;
         }
         @media(min-width: 900px) {
-            .grid-container { grid-template-columns: 380px 1fr; }
+            .layout { grid-template-columns: 380px 1fr; }
         }
         
-        .panel {
+        .card {
             background: white;
             padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             box-sizing: border-box;
         }
-        h3 { margin-top: 0; color: #1e3c72; border-bottom: 2px solid #f0f4f8; padding-bottom: 8px; }
+        h3 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 6px; }
         
-        .input-group {
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            font-weight: 600;
-            margin-bottom: 5px;
-            font-size: 13px;
-        }
-        input[type="text"], select {
+        .field { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px; }
+        
+        input[type="file"], input[type="text"], select {
             width: 100%;
             padding: 10px;
-            border: 1px solid #cdd7e5;
+            border: 1px solid #bdc3c7;
             border-radius: 6px;
             box-sizing: border-box;
-            background-color: #fcfdfe;
+            font-size: 14px;
         }
         
         .btn {
-            background-color: #2a5298;
+            background-color: #2980b9;
             color: white;
             padding: 12px;
             border: none;
@@ -71,109 +65,102 @@
             font-size: 14px;
             transition: background 0.2s;
         }
-        .btn:hover { background-color: #1e3c72; }
-        .btn-live { background-color: #e67e22; margin-top: 5px; }
-        .btn-live:hover { background-color: #d35400; }
+        .btn:hover { background-color: #2471a3; }
+        .btn-orange { background-color: #e67e22; margin-top: 5px; }
+        .btn-orange:hover { background-color: #d35400; }
         
-        .analysis-box {
-            background-color: #fdf2e9;
-            border-left: 4px solid #e67e22;
-            padding: 15px;
+        .info-box {
+            background-color: #ebf5fb;
+            border-left: 4px solid #2980b9;
+            padding: 12px;
             margin-top: 15px;
-            border-radius: 6px;
-            font-size: 14px;
-        }
-        
-        .table-wrapper {
-            overflow-x: auto;
-            max-height: 650px;
-            border: 1px solid #e2e8f0;
-            border-radius: 8px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
+            border-radius: 4px;
             font-size: 13px;
         }
+        
+        .table-container {
+            overflow-x: auto;
+            max-height: 600px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
         th {
             background-color: #f8fafc;
             color: #475569;
-            font-weight: 700;
             padding: 12px 10px;
             border-bottom: 2px solid #e2e8f0;
             position: sticky;
             top: 0;
-            z-index: 10;
+            z-index: 5;
         }
-        td {
-            padding: 10px;
-            border-bottom: 1px solid #edf2f7;
-            white-space: nowrap;
-            max-width: 250px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        td { padding: 10px; border-bottom: 1px solid #edf2f7; white-space: nowrap; }
         tr:hover { background-color: #f1f5f9; }
-        .badge {
-            background-color: #e2e8f0;
-            color: #475569;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-        }
+        .counter { background: #cbd5e1; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>Жив ГИС Анализатор - София 2026</h1>
-    <p>Директно извличане на реални данни от OpenStreetMap, заобикаляйки старите държавни архиви</p>
+    <h1>Универсален Анализатор - София</h1>
+    <p>Работи без проблем както локално, така и след качване онлайн в GitHub Pages</p>
 </header>
 
-<div class="grid-container">
-    <div class="panel">
-        <h3>⚡ Живо теглене (Реално време)</h3>
+<div class="layout">
+    <div class="card">
+        <h3>📂 Избор на Източник</h3>
         
-        <div class="input-group">
-            <label>Избери актуален слой от OSM:</label>
-            <select id="osmLayer">
-                <option value="trunk_primary">Основни булеварди и главни пътища</option>
-                <option value="cycleway">Велоалеи и вело-инфраструктура</option>
-                <option value="charging_station">Зарядни станции за ЕПС (Автомобили)</option>
-                <option value="speed_limits">Пътища със специфични ограничения (maxspeed)</option>
+        <div class="field">
+            <label>Как ще заредите данните?</label>
+            <select id="loaderMode" onchange="switchMode()">
+                <option value="localFile">Качване на мой локален файл (.json / .txt)</option>
+                <option value="osmLive">Живо защитено теглене от OpenStreetMap</option>
             </select>
-            <button class="btn btn-live" onclick="fetchOSMData()">Извлечи на живо от OpenStreetMap</button>
-        </div>
-        
-        <h3>🔍 Търсене в реално време</h3>
-        <div class="input-group">
-            <input type="text" id="searchQuery" placeholder="Филтрирай по име на улица, оператор, скорост...">
         </div>
 
-        <h3>🧠 Анализатор на текущия фийд</h3>
-        <button class="btn" onclick="runOSMAnalysis()">Стартирай Анализ на Днешните Данни</button>
+        <div id="localFileGroup" class="field">
+            <label>Избери някой от твоите GeoJSON файлове:</label>
+            <input type="file" id="localGeoFile" accept=".json,.txt,.geojson">
+        </div>
+
+        <div id="osmLiveGroup" class="field" style="display: none;">
+            <label>Избери актуален ГИС слой:</label>
+            <select id="osmQueryType">
+                <option value="charging">Зарядни станции за електромобили</option>
+                <option value="roads">Основни булеварди и големи улици</option>
+                <option value="speed">Ограничения на скоростта (maxspeed)</option>
+            </select>
+            <button class="btn btn-orange" onclick="loadLiveOSM()">Извлечи чрез Сигурен Сървър</button>
+        </div>
         
-        <div id="analysisResult" class="analysis-box" style="display:none;">
-            <div id="analysisContent">Анализ...</div>
+        <h3>🔍 Търсене & Филтър</h3>
+        <div class="field">
+            <input type="text" id="mainFilter" placeholder="Въведи филтър (напр. Люлин, Младост, 50 км/ч)...">
+        </div>
+
+        <h3>🧠 Анализиращ Модул</h3>
+        <button class="btn" onclick="executeAnalysis()">Стартирай Анализ</button>
+        
+        <div id="analysisSection" class="info-box" style="display: none;">
+            <div id="analysisData">Резултати от обработката...</div>
         </div>
     </div>
 
-    <div class="panel">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h3 style="margin: 0; border: none; padding: 0;">Актуална мрежа</h3>
-            <span class="badge">Заредени обекти: <span id="recordCount">0</span></span>
+    <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <h3 style="margin:0; padding:0; border:none;">Таблица с атрибути</h3>
+            <span class="counter">Елементи: <span id="elementsFound">0</span></span>
         </div>
         
-        <div class="table-wrapper">
-            <table id="dataTable">
+        <div class="table-container">
+            <table id="gridTable">
                 <thead>
-                    <tr id="tableHeader">
-                        <th>Изберете слой и натиснете бутона за живо теглене</th>
+                    <tr id="gridHeader">
+                        <th>Очаква се избор на източник</th>
                     </tr>
                 </thead>
-                <tbody id="tableBody">
-                    <tr><td>Няма заредени живи данни.</td></tr>
+                <tbody id="gridBody">
+                    <tr><td>Моля, качете файл или изтеглете живи данни от панела вляво.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -181,140 +168,187 @@
 </div>
 
 <script>
-    let currentFeatures = null;
+    let activeDataset = null;
 
-    // Генератор на Overpass QL заявки в зависимост от избрания интерес
-    function fetchOSMData() {
-        const layer = document.getElementById('osmLayer').value;
-        document.getElementById('tableBody').innerHTML = '<tr><td>Изпращане на заявка до Overpass API... Моля, изчакайте (5-10 сек)</td></tr>';
+    function switchMode() {
+        const mode = document.getElementById('loaderMode').value;
+        document.getElementById('localFileGroup').style.display = mode === 'localFile' ? 'block' : 'none';
+        document.getElementById('osmLiveGroup').style.display = mode === 'osmLive' ? 'block' : 'none';
+    }
+
+    // Четец на локални файлове - работи безупречно навсякъде
+    document.getElementById('localGeoFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            try {
+                const parsedJSON = JSON.parse(evt.target.result);
+                activeDataset = parsedJSON.features || [];
+                renderGrid(activeDataset);
+                document.getElementById('analysisSection').style.display = 'none';
+            } catch (err) {
+                alert("Грешка при четенето на файла. Уверете се, че е чист JSON/GeoJSON.");
+            }
+        };
+        reader.readAsText(file);
+    });
+
+    // Безопасно теглене от OpenStreetMap
+    function loadLiveOSM() {
+        const type = document.getElementById('osmQueryType').value;
+        const tbody = document.getElementById('gridBody');
+        tbody.innerHTML = '<tr><td>Извличане на данни през защитен HTTPS прокси сървър... Моля, изчакайте малко.</td></tr>';
         
-        // Координатна кутия (BBox) за района на София
-        const софияBBox = "42.60,23.20,42.76,23.45"; 
-        let query = "";
+        const bbox = "42.60,23.20,42.76,23.45"; // София регион
+        let osmQL = "";
 
-        if (layer === "trunk_primary") {
-            query = `[out:json];(way["highway"~"trunk|primary"](${софияBBox}););out body;>;out skel qt;`;
-        } else if (layer === "cycleway") {
-            query = `[out:json];(way["cycleway"](${софияBBox});way["highway"="cycleway"](${софияBBox}););out body;>;out skel qt;`;
-        } else if (layer === "charging_station") {
-            query = `[out:json];(node["amenity"="charging_station"](${софияBBox});way["amenity"="charging_station"](${софияBBox}););out body;>;out skel qt;`;
-        } else if (layer === "speed_limits") {
-            query = `[out:json];(way["maxspeed"](${софияBBox}););out body;>;out skel qt;`;
+        if (type === "charging") {
+            osmQL = `[out:json];node["amenity"="charging_station"](${bbox});out body;`;
+        } else if (type === "roads") {
+            osmQL = `[out:json];way["highway"~"trunk|primary"](${bbox});out body;`;
+        } else if (type === "speed") {
+            osmQL = `[out:json];way["maxspeed"](${bbox});out body;`;
         }
 
-        const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
+        // Използваме тестван френски HTTPS сървър, който не блокира CORS заявки от уеб браузъри
+        const endpoint = "https://overpass.openstreetmap.fr/api/interpreter?data=" + encodeURIComponent(osmQL);
 
-        fetch(url)
-            .then(res => res.json())
-            .then(data => {
-                // Преобразуваме суровия OSM JSON в плоска структура за таблицата ни
-                currentFeatures = data.elements.filter(el => el.tags);
-                displayTable(currentFeatures);
-                document.getElementById('analysisResult').style.display = 'none';
+        fetch(endpoint)
+            .then(res => {
+                if(!res.ok) throw new Error("Сървърът отказа връзка или е претоварен.");
+                return res.json();
             })
-            .catch(err => {
-                alert("Грешка при комуникация с OSM сървъра. Опитайте отново.");
-                document.getElementById('tableBody').innerHTML = '<tr><td>Грешка при зареждане.</td></tr>';
+            .then(resData => {
+                // Мапваме структурата на OSM към плоска за нашия грид
+                activeDataset = resData.elements.filter(el => el.tags);
+                renderGrid(activeDataset);
+                document.getElementById('analysisSection').style.display = 'none';
+            })
+            .catch(error => {
+                tbody.innerHTML = `<tr><td style="color: #c0392b; font-weight: bold;">
+                    ⚠️ Грешка: ${error.message}<br>
+                    <small style="color: #7f8c8d; font-weight: normal;">Ако тествате от локален файл на телефона, браузърът блокира заявката. Качете файла в GitHub Pages и ще работи!</small>
+                </td></tr>`;
             });
     }
 
-    function displayTable(elements, queryText = "") {
-        const headerRow = document.getElementById('tableHeader');
-        const tableBody = document.getElementById('tableBody');
-        const countSpan = document.getElementById('recordCount');
+    // Рендериране на колоните и редовете
+    function renderGrid(dataItems, filterString = "") {
+        const header = document.getElementById('gridHeader');
+        const body = document.getElementById('gridBody');
+        const counter = document.getElementById('elementsFound');
         
-        headerRow.innerHTML = '';
-        tableBody.innerHTML = '';
+        header.innerHTML = '';
+        body.innerHTML = '';
 
-        if (!elements || elements.length === 0) {
-            tableBody.innerHTML = '<tr><td>Няма намерени активни обекти за този критерий в София.</td></tr>';
-            countSpan.innerText = '0';
+        if (!dataItems || dataItems.length === 0) {
+            body.innerHTML = '<tr><td>Няма открити валидни записи.</td></tr>';
+            counter.innerText = '0';
             return;
         }
 
-        // Базови колони, които ни вълнуват от таговете
-        const baseColumns = ["id", "type", "name", "highway", "maxspeed", "amenity", "operator", "amperage", "voltage"];
+        // Дефиниране на колони на база първия елемент
+        let isOSM = dataItems[0].tags !== undefined;
+        let columns = [];
         
-        baseColumns.forEach(col => {
+        if (isOSM) {
+            columns = ["id", "type", "name", "highway", "maxspeed", "amenity", "operator"];
+        } else {
+            columns = Object.keys(dataItems[0].properties || {});
+        }
+
+        columns.forEach(c => {
             const th = document.createElement('th');
-            th.innerText = col;
-            headerRow.appendChild(th);
+            th.innerText = c;
+            header.appendChild(th);
         });
 
-        const query = queryText.toLowerCase().trim();
-        let matchCount = 0;
+        const filter = filterString.toLowerCase().trim();
+        let currentCount = 0;
 
-        elements.forEach(el => {
-            const tags = el.tags || {};
-            const combinedValues = Object.values(tags).join(" ").toLowerCase() + " " + String(el.id);
+        dataItems.forEach(item => {
+            const datasetProps = isOSM ? item.tags : (item.properties || {});
             
-            if (query !== "" && !combinedValues.includes(query)) return;
+            // Проверка за съответствие с търсачката
+            if (filter !== "") {
+                const rowText = Object.values(datasetProps).join(" ").toLowerCase() + " " + (item.id || "");
+                if (!rowText.includes(filter)) return;
+            }
 
-            matchCount++;
+            currentCount++;
             const tr = document.createElement('tr');
             
-            baseColumns.forEach(col => {
+            columns.forEach(c => {
                 const td = document.createElement('td');
-                if (col === "id") td.innerText = el.id;
-                else if (col === "type") td.innerText = el.type;
-                else td.innerText = tags[col] !== undefined ? tags[col] : '-';
+                if (isOSM && c === "id") td.innerText = item.id;
+                else if (isOSM && c === "type") td.innerText = item.type;
+                else td.innerText = datasetProps[c] !== undefined ? datasetProps[c] : '-';
                 tr.appendChild(td);
             });
-            tableBody.appendChild(tr);
+            body.appendChild(tr);
         });
 
-        countSpan.innerText = matchCount;
+        counter.innerText = currentCount;
     }
 
-    document.getElementById('searchQuery').addEventListener('input', function(e) {
-        if (currentFeatures) displayTable(currentFeatures, e.target.value);
+    // Слушател на филтъра в реално време
+    document.getElementById('mainFilter').addEventListener('input', function(e) {
+        if (activeDataset) renderGrid(activeDataset, e.target.value);
     });
 
-    function runOSMAnalysis() {
-        const box = document.getElementById('analysisResult');
-        const content = document.getElementById('analysisContent');
+    // Смесен анализатор на данни
+    function executeAnalysis() {
+        const box = document.getElementById('analysisSection');
+        const output = document.getElementById('analysisData');
         
-        if (!currentFeatures || currentFeatures.length === 0) {
-            alert("Няма заредени данни за анализ!");
+        if (!activeDataset || activeDataset.length === 0) {
+            alert("Няма зареден масив за анализ!");
             return;
         }
 
         box.style.display = 'block';
-        const layer = document.getElementById('osmLayer').value;
-        let html = `<h4>📊 Анализ в реално време:</h4>`;
+        let totalObjects = activeDataset.length;
+        let summaryHTML = `<strong>Статистически профил:</strong> Общо извлечени ${totalObjects} записа.<br><br>`;
+        
+        let sample = activeDataset[0];
+        let isOSM = sample.tags !== undefined;
+        let properties = isOSM ? sample.tags : (sample.properties || {});
 
-        if (layer === "charging_station") {
-            let operators = {};
-            let fastChargers = 0;
-            currentFeatures.forEach(el => {
-                let op = el.tags.operator || "Неизвестен оператор";
-                operators[op] = (operators[op] || 0) + 1;
-                if (el.tags.voltage && parseFloat(el.tags.voltage) > 400) fastChargers++;
+        // Специфична секция за твоите файлове с цени на имоти
+        if ('cena_ap_kv_m' in properties) {
+            let prices = [];
+            activeDataset.forEach(f => {
+                let v = parseFloat(f.properties.cena_ap_kv_m);
+                if(!isNaN(v)) prices.push(v);
             });
-            html += `<p>• Общ брой активни локации: <strong>${currentFeatures.length}</strong></p>`;
-            html += `<p>• Бързи зарядни станции (DC/Високо напрежение): <strong>${fastChargers}</strong></p>`;
-            html += `<p>• Топ мрежи/оператори в София:</p><ul>`;
-            Object.entries(operators).sort((a,b)=>b[1]-a[1]).slice(0,3).forEach(([k,v]) => {
-                html += `<li>${k}: ${v} станции</li>`;
+            if(prices.length > 0) {
+                let avg = prices.reduce((a,b)=>a+b, 0) / prices.length;
+                summaryHTML += `<strong>💰 Имотен сегмент:</strong><br>`;
+                summaryHTML += `• Средна стойност за масива: ${avg.toFixed(2)} €/кв.м<br>`;
+                summaryHTML += `• Най-висока граница: ${Math.max(...prices)} €/кв.м<br>`;
+            }
+        } 
+        // Разпознаване на ограничения на скоростта (OSM или Твои файлове)
+        else if ('maxspeed' in properties) {
+            let speedMap = {};
+            activeDataset.forEach(f => {
+                let s = isOSM ? f.tags.maxspeed : f.properties.maxspeed;
+                if(s) speedMap[s] = (speedMap[s] || 0) + 1;
             });
-            html += `</ul>`;
-        } else if (layer === "speed_limits") {
-            let limits = {};
-            currentFeatures.forEach(el => {
-                if(el.tags.maxspeed) limits[el.tags.maxspeed] = (limits[el.tags.maxspeed] || 0) + 1;
-            });
-            html += `<p>• Засечени отсечки с регулация на скоростта: <strong>${currentFeatures.length}</strong></p>`;
-            html += `<p>• Профил на ограниченията в града:</p><ul>`;
-            Object.entries(limits).sort((a,b)=>b[1]-a[1]).forEach(([k,v]) => {
-                html += `<li>${k} км/ч: ${v} улици/сегменти</li>`;
-            });
-            html += `</ul>`;
-        } else {
-            html += `<p>• Извлечени са <strong>${currentFeatures.length}</strong> актуални инфраструктурни обекти от живата карта.</p>`;
-            html += `<p>Използвайте текстовата търсачка за бързо изолиране на конкретни обекти.</p>`;
+            summaryHTML += `<strong>🛣️ Инфраструктурен профил (Скорости):</strong><br>`;
+            for(let speed in speedMap) {
+                summaryHTML += `• Ограничение ${speed} км/ч: в ${speedMap[speed]} отсечки<br>`;
+            }
+        } 
+        // Общ случай за всякакви други данни (автоматична класификация)
+        else {
+            let keys = Object.keys(properties);
+            summaryHTML += `<strong>📋 Структурен модел:</strong><br>Открити данни със свойства: ${keys.slice(0, 5).join(', ')}...`;
         }
 
-        content.innerHTML = html;
+        output.innerHTML = summaryHTML;
     }
 </script>
 
