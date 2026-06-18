@@ -3,172 +3,180 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>София Дата Анализатор - Бронирана Версия</title>
+    <title>Интерактивен ГИС Анализатор - София 2026</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            padding: 15px;
-            background-color: #f4f6f9;
-            color: #333;
+            padding: 10px;
+            background-color: #f1f5f9;
+            color: #1e293b;
         }
         header {
-            background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
             color: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
-            margin-bottom: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            margin-bottom: 15px;
         }
-        header h1 { margin: 0; font-size: 22px; }
-        header p { margin: 5px 0 0 0; opacity: 0.8; font-size: 13px; }
+        header h1 { margin: 0; font-size: 20px; }
+        header p { margin: 5px 0 0 0; opacity: 0.8; font-size: 12px; }
         
         .layout {
             display: grid;
             grid-template-columns: 1fr;
-            gap: 20px;
+            gap: 15px;
         }
-        @media(min-width: 900px) {
-            .layout { grid-template-columns: 380px 1fr; }
+        @media(min-width: 950px) {
+            .layout { grid-template-columns: 360px 1fr; }
         }
         
         .card {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
             box-sizing: border-box;
         }
-        h3 { margin-top: 0; color: #2c3e50; border-bottom: 2px solid #ecf0f1; padding-bottom: 6px; }
+        h3 { margin-top: 0; color: #1e3a8a; border-bottom: 2px solid #e2e8f0; padding-bottom: 6px; font-size: 16px; }
         
-        .field { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px; }
+        .field { margin-bottom: 12px; }
+        label { display: block; font-weight: bold; margin-bottom: 4px; font-size: 12px; }
         
         input[type="file"], input[type="text"], select {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #bdc3c7;
+            padding: 8px;
+            border: 1px solid #cbd5e1;
             border-radius: 6px;
             box-sizing: border-box;
-            font-size: 14px;
+            font-size: 13px;
         }
         
         .btn {
-            background-color: #2980b9;
+            background-color: #2563eb;
             color: white;
-            padding: 12px;
+            padding: 10px;
             border: none;
             border-radius: 6px;
             cursor: pointer;
             width: 100%;
             font-weight: bold;
-            font-size: 14px;
-            transition: background 0.2s;
-        }
-        .btn:hover { background-color: #2471a3; }
-        .btn-orange { background-color: #e67e22; margin-top: 5px; }
-        .btn-orange:hover { background-color: #d35400; }
-        
-        .info-box {
-            background-color: #ebf5fb;
-            border-left: 4px solid #2980b9;
-            padding: 12px;
-            margin-top: 15px;
-            border-radius: 4px;
             font-size: 13px;
+        }
+        .btn:hover { background-color: #1d4ed8; }
+        .btn-orange { background-color: #ea580c; margin-top: 5px; }
+        .btn-orange:hover { background-color: #c2410c; }
+        
+        /* Стилизиране на Картата */
+        #map {
+            width: 100%;
+            height: 400px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            margin-bottom: 15px;
+            z-index: 1;
         }
         
         .table-container {
             overflow-x: auto;
-            max-height: 600px;
+            max-height: 300px;
             border: 1px solid #e2e8f0;
             border-radius: 6px;
         }
-        table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; text-align: left; }
         th {
             background-color: #f8fafc;
-            color: #475569;
-            padding: 12px 10px;
+            color: #64748b;
+            padding: 10px;
             border-bottom: 2px solid #e2e8f0;
             position: sticky;
             top: 0;
             z-index: 5;
         }
-        td { padding: 10px; border-bottom: 1px solid #edf2f7; white-space: nowrap; }
-        tr:hover { background-color: #f1f5f9; }
-        .counter { background: #cbd5e1; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        td { padding: 8px; border-bottom: 1px solid #f1f5f9; white-space: nowrap; }
+        tr:hover { background-color: #f8fafc; }
+        
+        .badge { background: #e2e8f0; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+        .map-link { color: #2563eb; font-weight: bold; text-decoration: none; }
+        .map-link:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
 
 <header>
-    <h1>Универсален Анализатор - София</h1>
-    <p>Работи без проблем както локално, така и след качване онлайн в GitHub Pages</p>
+    <h1>Картографски ГИС Център - София</h1>
+    <p>Визуализация в реално време, интерактивни линкове и локален анализ</p>
 </header>
 
 <div class="layout">
     <div class="card">
-        <h3>📂 Избор на Източник</h3>
-        
+        <h3>📂 Източник на данни</h3>
         <div class="field">
-            <label>Как ще заредите данните?</label>
             <select id="loaderMode" onchange="switchMode()">
-                <option value="localFile">Качване на мой локален файл (.json / .txt)</option>
-                <option value="osmLive">Живо защитено теглене от OpenStreetMap</option>
+                <option value="localFile">Мой локален GeoJSON файл</option>
+                <option value="osmLive">Живи данни от OpenStreetMap</option>
             </select>
         </div>
 
         <div id="localFileGroup" class="field">
-            <label>Избери някой от твоите GeoJSON файлове:</label>
             <input type="file" id="localGeoFile" accept=".json,.txt,.geojson">
         </div>
 
         <div id="osmLiveGroup" class="field" style="display: none;">
-            <label>Избери актуален ГИС слой:</label>
+            <label>Избери ГИС слой:</label>
             <select id="osmQueryType">
-                <option value="charging">Зарядни станции за електромобили</option>
-                <option value="roads">Основни булеварди и големи улици</option>
-                <option value="speed">Ограничения на скоростта (maxspeed)</option>
+                <option value="charging">Зарядни станции ЕПС (Точки)</option>
+                <option value="roads">Главни булеварди (Линии)</option>
             </select>
-            <button class="btn btn-orange" onclick="loadLiveOSM()">Извлечи чрез Сигурен Сървър</button>
+            <button class="btn btn-orange" onclick="loadLiveOSM()">Зареди жива карта</button>
         </div>
         
-        <h3>🔍 Търсене & Филтър</h3>
+        <h3>🔍 Жив филтър в масива</h3>
         <div class="field">
-            <input type="text" id="mainFilter" placeholder="Въведи филтър (напр. Люлин, Младост, 50 км/ч)...">
+            <input type="text" id="mainFilter" placeholder="Търси улица, квартал, оператор...">
         </div>
 
-        <h3>🧠 Анализиращ Модул</h3>
-        <button class="btn" onclick="executeAnalysis()">Стартирай Анализ</button>
-        
-        <div id="analysisSection" class="info-box" style="display: none;">
-            <div id="analysisData">Резултати от обработката...</div>
-        </div>
+        <div id="statusBox" style="font-size: 12px; color: #64748b; margin-top: 10px;"></div>
     </div>
 
-    <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <h3 style="margin:0; padding:0; border:none;">Таблица с атрибути</h3>
-            <span class="counter">Елементи: <span id="elementsFound">0</span></span>
-        </div>
-        
-        <div class="table-container">
-            <table id="gridTable">
-                <thead>
-                    <tr id="gridHeader">
-                        <th>Очаква се избор на източник</th>
-                    </tr>
-                </thead>
-                <tbody id="gridBody">
-                    <tr><td>Моля, качете файл или изтеглете живи данни от панела вляво.</td></tr>
-                </tbody>
-            </table>
+    <div>
+        <div id="map"></div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h3 style="margin:0; padding:0; border:none;">Атрибутивна таблица</h3>
+                <span class="badge">Елементи: <span id="elementsFound">0</span></span>
+            </div>
+            
+            <div class="table-container">
+                <table id="gridTable">
+                    <thead>
+                        <tr id="gridHeader"><th>Заредете данни за преглед</th></tr>
+                    </thead>
+                    <tbody id="gridBody">
+                        <tr><td>Всички гео-обекти ще се виждат тук и на картата горе.</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 </div>
 
 <script>
-    let activeDataset = null;
+    // 1. Инициализиране на интерактивната карта, центрирана над София
+    const map = L.map('map').setView([42.6977, 23.3219], 12);
+    
+    // Добавяне на чист, бърз и модерен улична карта (слой)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    let geoJsonLayer = null; // Тук ще държим текущия слой на картата
+    let rawFeatures = null;  // Памет за заредения масив
 
     function switchMode() {
         const mode = document.getElementById('loaderMode').value;
@@ -176,7 +184,7 @@
         document.getElementById('osmLiveGroup').style.display = mode === 'osmLive' ? 'block' : 'none';
     }
 
-    // Четец на локални файлове - работи безупречно навсякъде
+    // Четене на локално качени файлове
     document.getElementById('localGeoFile').addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (!file) return;
@@ -184,58 +192,47 @@
         const reader = new FileReader();
         reader.onload = function(evt) {
             try {
-                const parsedJSON = JSON.parse(evt.target.result);
-                activeDataset = parsedJSON.features || [];
-                renderGrid(activeDataset);
-                document.getElementById('analysisSection').style.display = 'none';
+                const parsed = JSON.parse(evt.target.result);
+                rawFeatures = parsed;
+                processAndRender(rawFeatures);
             } catch (err) {
-                alert("Грешка при четенето на файла. Уверете се, че е чист JSON/GeoJSON.");
+                alert("Невалиден JSON формат.");
             }
         };
         reader.readAsText(file);
     });
 
-    // Безопасно теглене от OpenStreetMap
+    // Живо теглене от OSM чрез защитен френски HTTPS инстанс
     function loadLiveOSM() {
         const type = document.getElementById('osmQueryType').value;
-        const tbody = document.getElementById('gridBody');
-        tbody.innerHTML = '<tr><td>Извличане на данни през защитен HTTPS прокси сървър... Моля, изчакайте малко.</td></tr>';
+        document.getElementById('statusBox').innerText = "Теглене от сателитен сървър...";
         
-        const bbox = "42.60,23.20,42.76,23.45"; // София регион
-        let osmQL = "";
+        const bbox = "42.60,23.20,42.76,23.45"; 
+        let query = type === "charging" 
+            ? `[out:json];node["amenity"="charging_station"](${bbox});out body;`
+            : `[out:json];way["highway"~"trunk|primary"](${bbox});out body;>;out skel qt;`;
 
-        if (type === "charging") {
-            osmQL = `[out:json];node["amenity"="charging_station"](${bbox});out body;`;
-        } else if (type === "roads") {
-            osmQL = `[out:json];way["highway"~"trunk|primary"](${bbox});out body;`;
-        } else if (type === "speed") {
-            osmQL = `[out:json];way["maxspeed"](${bbox});out body;`;
-        }
+        const url = "https://overpass.openstreetmap.fr/api/interpreter?data=" + encodeURIComponent(query);
 
-        // Използваме тестван френски HTTPS сървър, който не блокира CORS заявки от уеб браузъри
-        const endpoint = "https://overpass.openstreetmap.fr/api/interpreter?data=" + encodeURIComponent(osmQL);
-
-        fetch(endpoint)
-            .then(res => {
-                if(!res.ok) throw new Error("Сървърът отказа връзка или е претоварен.");
-                return res.json();
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                // Конвертираме OSM JSON формат до стандартен уеб GeoJSON в реално време
+                rawFeatures = osmtogeojson(data);
+                processAndRender(rawFeatures);
+                document.getElementById('statusBox').innerText = "Данните са заредени успешно!";
             })
-            .then(resData => {
-                // Мапваме структурата на OSM към плоска за нашия грид
-                activeDataset = resData.elements.filter(el => el.tags);
-                renderGrid(activeDataset);
-                document.getElementById('analysisSection').style.display = 'none';
-            })
-            .catch(error => {
-                tbody.innerHTML = `<tr><td style="color: #c0392b; font-weight: bold;">
-                    ⚠️ Грешка: ${error.message}<br>
-                    <small style="color: #7f8c8d; font-weight: normal;">Ако тествате от локален файл на телефона, браузърът блокира заявката. Качете файла в GitHub Pages и ще работи!</small>
-                </td></tr>`;
+            .catch(err => {
+                document.getElementById('statusBox').innerText = "Грешка при връзката. Пробвайте през GitHub Pages.";
             });
     }
 
-    // Рендериране на колоните и редовете
-    function renderGrid(dataItems, filterString = "") {
+    // Основен двигател: чертае на картата и пълни таблицата едновременно
+    function processAndRender(geoJsonData, filterStr = "") {
+        // Чистим старите обекти от картата, ако има такива
+        if (geoJsonLayer) map.removeLayer(geoJsonLayer);
+        
+        const query = filterStr.toLowerCase().trim();
         const header = document.getElementById('gridHeader');
         const body = document.getElementById('gridBody');
         const counter = document.getElementById('elementsFound');
@@ -243,112 +240,110 @@
         header.innerHTML = '';
         body.innerHTML = '';
 
-        if (!dataItems || dataItems.length === 0) {
-            body.innerHTML = '<tr><td>Няма открити валидни записи.</td></tr>';
-            counter.innerText = '0';
+        if (!geoJsonData || !geoJsonData.features || geoJsonData.features.length === 0) {
+            body.innerHTML = '<tr><td>Няма географски данни.</td></tr>';
             return;
         }
 
-        // Дефиниране на колони на база първия елемент
-        let isOSM = dataItems[0].tags !== undefined;
-        let columns = [];
+        // Взимаме заглавията за колоните на таблицата
+        const sampleProps = geoJsonData.features[0].properties || {};
+        const mainCols = ["name", "regname", "kvartal", "cena_ap_kv_m", "maxspeed", "amenity", "operator"].filter(k => k in sampleProps || Object.keys(sampleProps).length > 0);
         
-        if (isOSM) {
-            columns = ["id", "type", "name", "highway", "maxspeed", "amenity", "operator"];
-        } else {
-            columns = Object.keys(dataItems[0].properties || {});
-        }
+        // Ако няма нищо от горните, взимаме първите 5 произволни тага
+        const finalCols = mainCols.length > 0 ? mainCols.slice(0,5) : Object.keys(sampleProps).slice(0, 5);
+        finalCols.unshift("Навигация"); // Слагаме колона за линк най-отпред
 
-        columns.forEach(c => {
+        finalCols.forEach(c => {
             const th = document.createElement('th');
             th.innerText = c;
             header.appendChild(th);
         });
 
-        const filter = filterString.toLowerCase().trim();
-        let currentCount = 0;
+        let filteredFeatures = [];
+        let matchCount = 0;
 
-        dataItems.forEach(item => {
-            const datasetProps = isOSM ? item.tags : (item.properties || {});
+        // Филтриране и подготовка за визуализация
+        geoJsonData.features.forEach(f => {
+            const props = f.properties || {};
+            const txt = Object.values(props).join(" ").toLowerCase();
             
-            // Проверка за съответствие с търсачката
-            if (filter !== "") {
-                const rowText = Object.values(datasetProps).join(" ").toLowerCase() + " " + (item.id || "");
-                if (!rowText.includes(filter)) return;
-            }
+            if (query !== "" && !txt.includes(query)) return;
+            
+            filteredFeatures.push(f);
+            matchCount++;
 
-            currentCount++;
+            // Генериране на ред за таблицата
             const tr = document.createElement('tr');
             
-            columns.forEach(c => {
+            finalCols.forEach(c => {
                 const td = document.createElement('td');
-                if (isOSM && c === "id") td.innerText = item.id;
-                else if (isOSM && c === "type") td.innerText = item.type;
-                else td.innerText = datasetProps[c] !== undefined ? datasetProps[c] : '-';
+                if (c === "Навигация") {
+                    // Извличаме центъра на обекта за навигационен линк
+                    let coords = f.geometry.type === "Point" ? f.geometry.coordinates : f.geometry.coordinates[0];
+                    if(Array.isArray(coords[0])) coords = coords[0]; // Справяне с мулти-полигони
+                    const lat = coords[1]; const lng = coords[0];
+                    td.innerHTML = lat && lng ? `<a class="map-link" href="https://www.google.com/maps/search/?api=1&query=${lat},${lng}" target="_blank">🧭 Карта</a>` : '-';
+                } else {
+                    td.innerText = props[c] !== undefined ? props[c] : '-';
+                }
                 tr.appendChild(td);
             });
             body.appendChild(tr);
         });
 
-        counter.innerText = currentCount;
+        counter.innerText = matchCount;
+
+        // Чертане върху интерактивната карта с балончета при клик
+        geoJsonLayer = L.geoJSON(filteredFeatures, {
+            onEachFeature: function (feature, layer) {
+                let props = feature.properties || {};
+                let popupContent = `<div style="font-family:sans-serif; font-size:12px;"><strong>Обект детайли:</strong><br><hr>`;
+                for (let k in props) {
+                    if(props[k]) popupContent += `<b>${k}:</b> ${props[k]}<br>`;
+                }
+                // Добавяне на директен кликаем уеб линк за навигация в самото балонче на картата
+                let coords = feature.geometry.type === "Point" ? feature.geometry.coordinates : feature.geometry.coordinates[0];
+                if(Array.isArray(coords[0])) coords = coords[0];
+                popupContent += `<hr><a class="map-link" href="https://www.google.com/maps/search/?api=1&query=${coords[1]},${coords[0]}" target="_blank">➡️ Отвори в Google Maps</a></div>`;
+                
+                layer.bindPopup(popupContent);
+            },
+            style: { color: "#2563eb", weight: 4, opacity: 0.8 } // Дизайн за линии/пътища
+        }).addTo(map);
+
+        // Автоматично мащабиране на картата, за да събере всички намерени обекти
+        if(filteredFeatures.length > 0) {
+            try { map.fitBounds(geoJsonLayer.getBounds()); } catch(e){}
+        }
     }
 
-    // Слушател на филтъра в реално време
+    // Търсене при писане в реално време
     document.getElementById('mainFilter').addEventListener('input', function(e) {
-        if (activeDataset) renderGrid(activeDataset, e.target.value);
+        if (rawFeatures) processAndRender(rawFeatures, e.target.value);
     });
 
-    // Смесен анализатор на данни
-    function executeAnalysis() {
-        const box = document.getElementById('analysisSection');
-        const output = document.getElementById('analysisData');
+    // Микро-парсе за OSM структури (Задължителен за живия фийд)
+    function osmtogeojson(osm) {
+        let geo = { type: "FeatureCollection", features: [] };
+        let nodes = {};
+        osm.elements.forEach(el => { if(el.type === "node") nodes[el.id] = [el.lon, el.lat]; });
         
-        if (!activeDataset || activeDataset.length === 0) {
-            alert("Няма зареден масив за анализ!");
-            return;
-        }
-
-        box.style.display = 'block';
-        let totalObjects = activeDataset.length;
-        let summaryHTML = `<strong>Статистически профил:</strong> Общо извлечени ${totalObjects} записа.<br><br>`;
-        
-        let sample = activeDataset[0];
-        let isOSM = sample.tags !== undefined;
-        let properties = isOSM ? sample.tags : (sample.properties || {});
-
-        // Специфична секция за твоите файлове с цени на имоти
-        if ('cena_ap_kv_m' in properties) {
-            let prices = [];
-            activeDataset.forEach(f => {
-                let v = parseFloat(f.properties.cena_ap_kv_m);
-                if(!isNaN(v)) prices.push(v);
-            });
-            if(prices.length > 0) {
-                let avg = prices.reduce((a,b)=>a+b, 0) / prices.length;
-                summaryHTML += `<strong>💰 Имотен сегмент:</strong><br>`;
-                summaryHTML += `• Средна стойност за масива: ${avg.toFixed(2)} €/кв.м<br>`;
-                summaryHTML += `• Най-висока граница: ${Math.max(...prices)} €/кв.м<br>`;
+        osm.elements.forEach(el => {
+            if(el.tags) {
+                let f = { type: "Feature", properties: el.tags, geometry: {} };
+                if(el.type === "node") {
+                    f.geometry = { type: "Point", coordinates: [el.lon, el.lat] };
+                    geo.features.push(f);
+                } else if(el.type === "way" && el.nodes) {
+                    let coords = el.nodes.map(n => nodes[n]).filter(n => n);
+                    if(coords.length > 0) {
+                        f.geometry = { type: "LineString", coordinates: coords };
+                        geo.features.push(f);
+                    }
+                }
             }
-        } 
-        // Разпознаване на ограничения на скоростта (OSM или Твои файлове)
-        else if ('maxspeed' in properties) {
-            let speedMap = {};
-            activeDataset.forEach(f => {
-                let s = isOSM ? f.tags.maxspeed : f.properties.maxspeed;
-                if(s) speedMap[s] = (speedMap[s] || 0) + 1;
-            });
-            summaryHTML += `<strong>🛣️ Инфраструктурен профил (Скорости):</strong><br>`;
-            for(let speed in speedMap) {
-                summaryHTML += `• Ограничение ${speed} км/ч: в ${speedMap[speed]} отсечки<br>`;
-            }
-        } 
-        // Общ случай за всякакви други данни (автоматична класификация)
-        else {
-            let keys = Object.keys(properties);
-            summaryHTML += `<strong>📋 Структурен модел:</strong><br>Открити данни със свойства: ${keys.slice(0, 5).join(', ')}...`;
-        }
-
-        output.innerHTML = summaryHTML;
+        });
+        return geo;
     }
 </script>
 
