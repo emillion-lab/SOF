@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>София Живи Данни (Real-Time OSM & API)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f6f9;
+            color: #333;
+        }
+        header {
+            background: linear-gradient(135deg, #d32f2f 0%, #1e3c72 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        header h1 { margin: 0; font-size: 24px; }
+        header p { margin: 5px 0 0 0; opacity: 0.9; font-size: 14px; }
+        
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        @media(min-width: 900px) {
+            .grid-container { grid-template-columns: 380px 1fr; }
+        }
+        
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            box-sizing: border-box;
+        }
+        h3 { margin-top: 0; color: #1e3c72; border-bottom: 2px solid #f0f4f8; padding-bottom: 8px; }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #cdd7e5;
+            border-radius: 6px;
+            box-sizing: border-box;
+            background-color: #fcfdfe;
+        }
+        
+        .btn {
+            background-color: #2a5298;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+        .btn:hover { background-color: #1e3c72; }
+        .btn-live { background-color: #e67e22; margin-top: 5px; }
+        .btn-live:hover { background-color: #d35400; }
+        
+        .analysis-box {
+            background-color: #fdf2e9;
+            border-left: 4px solid #e67e22;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 650px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 700;
+            padding: 12px 10px;
+            border-bottom: 2px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #edf2f7;
+            white-space: nowrap;
+            max-width: 250px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        tr:hover { background-color: #f1f5f9; }
+        .badge {
+            background-color: #e2e8f0;
+            color: #475569;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Жив ГИС Анализатор - София 2026</h1>
+    <p>Директно извличане на реални данни от OpenStreetMap, заобикаляйки старите държавни архиви</p>
+</header>
+
+<div class="grid-container">
+    <div class="panel">
+        <h3>⚡ Живо теглене (Реално време)</h3>
+        
+        <div class="input-group">
+            <label>Избери актуален слой от OSM:</label>
+            <select id="osmLayer">
+                <option value="trunk_primary">Основни булеварди и главни пътища</option>
+                <option value="cycleway">Велоалеи и вело-инфраструктура</option>
+                <option value="charging_station">Зарядни станции за ЕПС (Автомобили)</option>
+                <option value="speed_limits">Пътища със специфични ограничения (maxspeed)</option>
+            </select>
+            <button class="btn btn-live" onclick="fetchOSMData()">Извлечи на живо от OpenStreetMap</button>
+        </div>
+        
+        <h3>🔍 Търсене в реално време</h3>
+        <div class="input-group">
+            <input type="text" id="searchQuery" placeholder="Филтрирай по име на улица, оператор, скорост...">
+        </div>
+
+        <h3>🧠 Анализатор на текущия фийд</h3>
+        <button class="btn" onclick="runOSMAnalysis()">Стартирай Анализ на Днешните Данни</button>
+        
+        <div id="analysisResult" class="analysis-box" style="display:none;">
+            <div id="analysisContent">Анализ...</div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 style="margin: 0; border: none; padding: 0;">Актуална мрежа</h3>
+            <span class="badge">Заредени обекти: <span id="recordCount">0</span></span>
+        </div>
+        
+        <div class="table-wrapper">
+            <table id="dataTable">
+                <thead>
+                    <tr id="tableHeader">
+                        <th>Изберете слой и натиснете бутона за живо теглене</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    <tr><td>Няма заредени живи данни.</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentFeatures = null;
+
+    // Генератор на Overpass QL заявки в зависимост от избрания интерес
+    function fetchOSMData() {
+        const layer = document.getElementById('osmLayer').value;
+        document.getElementById('tableBody').innerHTML = '<tr><td>Изпращане на заявка до Overpass API... Моля, изчакайте (5-10 сек)</td></tr>';
+        
+        // Координатна кутия (BBox) за района на София
+        const софияBBox = "42.60,23.20,42.76,23.45"; 
+        let query = "";
+
+        if (layer === "trunk_primary") {
+            query = `[out:json];(way["highway"~"trunk|primary"](${софияBBox}););out body;>;out skel qt;`;
+        } else if (layer === "cycleway") {
+            query = `[out:json];(way["cycleway"](${софияBBox});way["highway"="cycleway"](${софияBBox}););out body;>;out skel qt;`;
+        } else if (layer === "charging_station") {
+            query = `[out:json];(node["amenity"="charging_station"](${софияBBox});way["amenity"="charging_station"](${софияBBox}););out body;>;out skel qt;`;
+        } else if (layer === "speed_limits") {
+            query = `[out:json];(way["maxspeed"](${софияBBox}););out body;>;out skel qt;`;
+        }
+
+        const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                // Преобразуваме суровия OSM JSON в плоска структура за таблицата ни
+                currentFeatures = data.elements.filter(el => el.tags);
+                displayTable(currentFeatures);
+                document.getElementById('analysisResult').style.display = 'none';
+            })
+            .catch(err => {
+                alert("Грешка при комуникация с OSM сървъра. Опитайте отново.");
+                document.getElementById('tableBody').innerHTML = '<tr><td>Грешка при зареждане.</td></tr>';
+            });
+    }
+
+    function displayTable(elements, queryText = "") {
+        const headerRow = document.getElementById('tableHeader');
+        const tableBody = document.getElementById('tableBody');
+        const countSpan = document.getElementById('recordCount');
+        
+        headerRow.innerHTML = '';
+        tableBody.innerHTML = '';
+
+        if (!elements || elements.length === 0) {
+            tableBody.innerHTML = '<tr><td>Няма намерени активни обекти за този критерий в София.</td></tr>';
+            countSpan.innerText = '0';
+            return;
+        }
+
+        // Базови колони, които ни вълнуват от таговете
+        const baseColumns = ["id", "type", "name", "highway", "maxspeed", "amenity", "operator", "amperage", "voltage"];
+        
+        baseColumns.forEach(col => {
+            const th = document.createElement('th');
+            th.innerText = col;
+            headerRow.appendChild(th);
+        });
+
+        const query = queryText.toLowerCase().trim();
+        let matchCount = 0;
+
+        elements.forEach(el => {
+            const tags = el.tags || {};
+            const combinedValues = Object.values(tags).join(" ").toLowerCase() + " " + String(el.id);
+            
+            if (query !== "" && !combinedValues.includes(query)) return;
+
+            matchCount++;
+            const tr = document.createElement('tr');
+            
+            baseColumns.forEach(col => {
+                const td = document.createElement('td');
+                if (col === "id") td.innerText = el.id;
+                else if (col === "type") td.innerText = el.type;
+                else td.innerText = tags[col] !== undefined ? tags[col] : '-';
+                tr.appendChild(td);
+            });
+            tableBody.appendChild(tr);
+        });
+
+        countSpan.innerText = matchCount;
+    }
+
+    document.getElementById('searchQuery').addEventListener('input', function(e) {
+        if (currentFeatures) displayTable(currentFeatures, e.target.value);
+    });
+
+    function runOSMAnalysis() {
+        const box = document.getElementById('analysisResult');
+        const content = document.getElementById('analysisContent');
+        
+        if (!currentFeatures || currentFeatures.length === 0) {
+            alert("Няма заредени данни за анализ!");
+            return;
+        }
+
+        box.style.display = 'block';
+        const layer = document.getElementById('osmLayer').value;
+        let html = `<h4>📊 Анализ в реално време:</h4>`;
+
+        if (layer === "charging_station") {
+            let operators = {};
+            let fastChargers = 0;
+            currentFeatures.forEach(el => {
+                let op = el.tags.operator || "Неизвестен оператор";
+                operators[op] = (operators[op] || 0) + 1;
+                if (el.tags.voltage && parseFloat(el.tags.voltage) > 400) fastChargers++;
+            });
+            html += `<p>• Общ брой активни локации: <strong>${currentFeatures.length}</strong></p>`;
+            html += `<p>• Бързи зарядни станции (DC/Високо напрежение): <strong>${fastChargers}</strong></p>`;
+            html += `<p>• Топ мрежи/оператори в София:</p><ul>`;
+            Object.entries(operators).sort((a,b)=>b[1]-a[1]).slice(0,3).forEach(([k,v]) => {
+                html += `<li>${k}: ${v} станции</li>`;
+            });
+            html += `</ul>`;
+        } else if (layer === "speed_limits") {
+            let limits = {};
+            currentFeatures.forEach(el => {
+                if(el.tags.maxspeed) limits[el.tags.maxspeed] = (limits[el.tags.maxspeed] || 0) + 1;
+            });
+            html += `<p>• Засечени отсечки с регулация на скоростта: <strong>${currentFeatures.length}</strong></p>`;
+            html += `<p>• Профил на ограниченията в града:</p><ul>`;
+            Object.entries(limits).sort((a,b)=>b[1]-a[1]).forEach(([k,v]) => {
+                html += `<li>${k} км/ч: ${v} улици/сегменти</li>`;
+            });
+            html += `</ul>`;
+        } else {
+            html += `<p>• Извлечени са <strong>${currentFeatures.length}</strong> актуални инфраструктурни обекти от живата карта.</p>`;
+            html += `<p>Използвайте текстовата търсачка за бързо изолиране на конкретни обекти.</p>`;
+        }
+
+        content.innerHTML = html;
+    }
+</script>
+
+</body>
+</html>
