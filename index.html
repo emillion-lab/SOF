@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>София Мастър ГИС Радар v3.1</title>
+    <title>София Мастър ГИС Радар v3.2</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -47,4 +47,302 @@
         
         .table-container { overflow-x: auto; max-height: 280px; border: 1px solid #1e293b; border-radius: 4px; background: #0f172a; }
         table { width: 100%; border-collapse: collapse; font-size: 11px; text-align: left; }
-        th { background: #1e293b; color: #38bdf8; padding:
+        th { background: #1e293b; color: #38bdf8; padding: 8px; position: sticky; top: 0; z-index: 5; font-size: 10px; text-transform: uppercase; border-bottom: 2px solid #334155; }
+        td { padding: 7px 8px; border-bottom: 1px solid #1e293b; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; color: #cbd5e1; }
+        tr:hover { background: #1f2937; }
+        
+        .badge { background: #059669; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold; }
+        .map-link { color: #38bdf8; text-decoration: none; font-weight: bold; font-size: 11px; }
+        .map-link:hover { text-decoration: underline; }
+        
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 11px; margin-top: 5px; background: #0f172a; padding: 8px; border-radius: 4px; border: 1px solid #1e293b; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div>
+        <h1>София Динамичен ГИС Радар v3.2</h1>
+        <p>Пълна синхронизация с екрана в реално време | Исторически времеви масиви</p>
+    </div>
+    <span class="badge" style="background:#1e3a8a; border:1px solid #3b82f6;">GitHub Режим</span>
+</header>
+
+<div class="layout">
+    <div class="card">
+        <h3>📂 Източник на Големи Масиви</h3>
+        <div class="field">
+            <select id="loaderMode" onchange="switchMode()">
+                <option value="osmLive">Живо теглене от OpenStreetMap API (По Екран)</option>
+                <option value="localFile">Мои ГИС Архиви (Имоти, КАП, Демография)</option>
+            </select>
+        </div>
+
+        <div id="localFileGroup" class="field" style="display: none;">
+            <label>Зареди твой голям GeoJSON архив:</label>
+            <input type="file" id="localGeoFile" accept=".json,.txt,.geojson">
+        </div>
+
+        <div id="osmLiveGroup" class="field">
+            <label>Инфраструктурен слой (Текущ екран):</label>
+            <select id="osmQueryType">
+                <option value="buildings">Сградни корпуси и Жилищни блокове</option>
+                <option value="charging">Зарядни станции ЕПС (+Мощност & Мрежи)</option>
+                <option value="highways">Пътни артерии, Ограничения & Тротоари</option>
+                <option value="industrial">Промишлени зони, Логистика & Складове</option>
+            </select>
+            <button class="btn btn-live" onclick="loadLiveOSM()">Синхронизирай живи данни</button>
+        </div>
+
+        <h3>⏳ Историческа Епоха (Строителство)</h3>
+        <div class="field">
+            <select id="yearFilter" onchange="applyVisualFilters()">
+                <option value="all">🔄 Всички периоди / Неопределени</option>
+                <option value="1989">🏗️ Построени / Проектирани преди 1989 г.</option>
+                <option value="1995">🧱 Преходен период 1989 — 1995 г.</option>
+                <option value="2000">🏢 Строителен бум 1995 — 2000 г.</option>
+                <option value="2005">🌆 Разширение на София 2000 — 2005 г.</option>
+                <option value="2010">💎 Модернизация 2005 — 2010 г.</option>
+                <option value="2015">⚡ Инфраструктурен период 2010 — 2015 г.</option>
+                <option value="2020">📈 Нов инвестиционен бум 2015 — 2020 г.</option>
+                <option value="2025">🚀 Ново / Бъдещо строителство след 2020/2025 г.</option>
+            </select>
+        </div>
+        
+        <h3>🔍 Текстова Матрица</h3>
+        <div class="field">
+            <input type="text" id="mainFilter" placeholder="Въведи: Младост, Хемус, Люлин, 140...">
+        </div>
+
+        <h3>📊 Екранен Статистик</h3>
+        <div class="stats-grid">
+            <div>Общо за София: <b id="totalCount">0</b></div>
+            <div>Видими на екрана: <b style="color:#38bdf8;" id="elementsFound">0</b></div>
+        </div>
+        <div id="statusBox" style="font-size: 11px; color: #a855f7; margin-top: 5px; font-weight: bold;"></div>
+    </div>
+
+    <div>
+        <div id="map"></div>
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <h3>Атрибутивен Регистър (Филтриран по координати в реално време)</h3>
+            </div>
+            <div class="table-container">
+                <table id="gridTable">
+                    <thead><tr id="gridHeader"><th>Заредете данни, за да активирате мрежата</th></tr></thead>
+                    <tbody id="gridBody"><tr><td>Движете или зуумвайте картата горе — данните тук ще се филтрират автоматично според координатите.</td></tr></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Инициализация на ГИС картата
+    const map = L.map('map').setView([42.6977, 23.3219], 13);
+    
+    // Слой: Тъмен дизайн
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap | © CartoDB'
+    }).addTo(map);
+
+    let geoJsonLayer = null;
+    let rawFeatures = null;
+
+    function switchMode() {
+        const mode = document.getElementById('loaderMode').value;
+        document.getElementById('localFileGroup').style.display = mode === 'localFile' ? 'block' : 'none';
+        document.getElementById('osmLiveGroup').style.display = mode === 'osmLive' ? 'block' : 'none';
+    }
+
+    // Слушатели за движение на картата
+    map.on('moveend', () => { if (rawFeatures) applyVisualFilters(); });
+    map.on('zoomend', () => { if (rawFeatures) applyVisualFilters(); });
+
+    // Четец на файлове
+    document.getElementById('localGeoFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        document.getElementById('statusBox').innerText = "Зареждане на архива...";
+        reader.onload = function(evt) {
+            try {
+                rawFeatures = JSON.parse(evt.target.result);
+                document.getElementById('totalCount').innerText = rawFeatures.features.length;
+                document.getElementById('statusBox').innerText = "Архивът е зареден!";
+                applyVisualFilters();
+            } catch (err) { alert("Грешка при парсването на GeoJSON."); }
+        };
+        reader.readAsText(file);
+    });
+
+    // Живо теглене от Overpass API
+    function loadLiveOSM() {
+        const type = document.getElementById('osmQueryType').value;
+        document.getElementById('statusBox').innerText = "🚀 Дърпане на данни по координати...";
+        
+        const b = map.getBounds();
+        const bbox = `${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`;
+        let query = "";
+
+        if (type === "buildings") {
+            query = `[out:json];(building=yes(${bbox});building=residential(${bbox});building=apartments(${bbox}););out body;>;out skel qt;`;
+        } else if (type === "charging") {
+            query = `[out:json];(node["amenity"="charging_station"](${bbox});way["amenity"="charging_station"](${bbox}););out body;>;out skel qt;`;
+        } else if (type === "highways") {
+            query = `[out:json];way["highway"](${bbox});out body;>;out skel qt;`;
+        } else if (type === "industrial") {
+            query = `[out:json];(zone=industrial(${bbox});landuse=industrial(${bbox});building=warehouse(${bbox}););out body;>;out skel qt;`;
+        }
+
+        const url = "https://overpass.openstreetmap.fr/api/interpreter?data=" + encodeURIComponent(query);
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                rawFeatures = osmtogeojson(data);
+                document.getElementById('totalCount').innerText = rawFeatures.features.length;
+                document.getElementById('statusBox').innerText = "Синхронизирано!";
+                applyVisualFilters();
+            })
+            .catch(() => { document.getElementById('statusBox').innerText = "Грешка при връзката."; });
+    }
+
+    // Прилагане на филтрите
+    function applyVisualFilters() {
+        if (!rawFeatures || !rawFeatures.features) return;
+
+        const filterText = document.getElementById('mainFilter').value.toLowerCase().trim();
+        const epoch = document.getElementById('yearFilter').value;
+        const bounds = map.getBounds();
+
+        let visibleSet = [];
+
+        rawFeatures.features.forEach(f => {
+            if (!f.geometry) return;
+
+            let inView = false;
+            try {
+                if (f.geometry.type === "Point") {
+                    inView = bounds.contains(L.latLng(f.geometry.coordinates[1], f.geometry.coordinates[0]));
+                } else {
+                    let c = f.geometry.coordinates[0];
+                    if (Array.isArray(c[0])) c = c[0];
+                    inView = bounds.contains(L.latLng(c[1], c[0]));
+                }
+            } catch(e) { inView = true; }
+
+            if (!inView) return;
+
+            const p = f.properties || {};
+            let year = parseInt(p.godina || p.start_date || p.construction_date || p.year || 0);
+
+            if (epoch !== "all" && year > 0) {
+                if (epoch === "1989" && year >= 1989) return;
+                if (epoch === "1995" && (year < 1989 || year >= 1995)) return;
+                if (epoch === "2000" && (year < 1995 || year >= 2000)) return;
+                if (epoch === "2005" && (year < 2000 || year >= 2005)) return;
+                if (epoch === "2010" && (year < 2005 || year >= 2010)) return;
+                if (epoch === "2015" && (year < 2010 || year >= 2015)) return;
+                if (epoch === "2020" && (year < 2015 || year >= 2020)) return;
+                if (epoch === "2025" && year < 2020) return;
+            }
+
+            if (filterText !== "") {
+                const searchString = Object.values(p).join(" ").toLowerCase();
+                if (!searchString.includes(filterText)) return;
+            }
+
+            visibleSet.push(f);
+        });
+
+        renderMapAndTable(visibleSet);
+    }
+
+    // Рендериране
+    function renderMapAndTable(dataList) {
+        const header = document.getElementById('gridHeader');
+        const body = document.getElementById('gridBody');
+        document.getElementById('elementsFound').innerText = dataList.length;
+
+        header.innerHTML = ''; body.innerHTML = '';
+
+        if (geoJsonLayer) map.removeLayer(geoJsonLayer);
+
+        if (dataList.length === 0) {
+            body.innerHTML = '<tr><td colspan="5">Няма съвпадащи записи в тази част на София. Сменете епохата или преместете картата.</td></tr>';
+            return;
+        }
+
+        const sampleProps = dataList[0].properties || {};
+        const globalPriorityCols = ["name", "regname", "kvartal", "cena_ap_kv_m", "maxspeed", "godina", "rajon", "redukcia_20_jil_rzp_sum", "nbroi_lica_sum", "building"];
+        const dynamicMatch = Object.keys(sampleProps).filter(k => globalPriorityCols.includes(k));
+        const finalCols = dynamicMatch.length > 0 ? dynamicMatch.slice(0, 6) : Object.keys(sampleProps).slice(0, 6);
+        
+        finalCols.unshift("Маршрут");
+        finalCols.forEach(c => { const th = document.createElement('th'); th.innerText = c; header.appendChild(th); });
+
+        dataList.slice(0, 200).forEach(f => {
+            const tr = document.createElement('tr');
+            const p = f.properties || {};
+
+            finalCols.forEach(c => {
+                const td = document.createElement('td');
+                if (c === "Маршрут") {
+                    let coords = f.geometry.type === "Point" ? f.geometry.coordinates : f.geometry.coordinates[0];
+                    if (Array.isArray(coords[0])) coords = coords[0];
+                    
+                    // БЕЗОПАСЕН ФИКС: Използваме стандартни единични кавички без обратни наклонени или сложни конкатенации
+                    var mapUrl = 'https://www.google.com/maps/search/?api=1&query=' + coords[1] + ',' + coords[0];
+                    td.innerHTML = '<a class="map-link" href="' + mapUrl + '" target="_blank">🧭 Навигация</a>';
+                } else {
+                    td.innerText = p[c] !== undefined ? p[c] : '-';
+                }
+                tr.appendChild(td);
+            });
+            body.appendChild(tr);
+        });
+
+        if(dataList.length > 200) {
+            body.innerHTML += '<tr><td colspan="' + finalCols.length + '" style="text-align:center; color:#94a3b8; font-style:italic;">... и още ' + (dataList.length - 200) + ' обекта на екрана.</td></tr>';
+        }
+
+        geoJsonLayer = L.geoJSON(dataList, {
+            onEachFeature: function (feature, layer) {
+                let p = feature.properties || {};
+                let pop = '<div style="color:#0f172a; font-size:11px; font-family:sans-serif;"><strong>ГИС Спецификация:</strong><br><hr style="border:0; border-top:1px solid #ddd;">';
+                for(let k in p) { if(p[k]) pop += '<b>' + k + ':</b> ' + p[k] + '<br>'; }
+                layer.bindPopup(pop + '</div>');
+            },
+            pointToLayer: function(feature, latlng) {
+                return L.circleMarker(latlng, { radius: 5, fillColor: "#38bdf8", color: "#fff", weight: 1, fillOpacity: 0.85 });
+            },
+            style: function(feature) {
+                let sp = feature.properties.maxspeed;
+                return { color: sp && parseInt(sp) > 80 ? "#ef4444" : "#2563eb", weight: 3, opacity: 0.85 };
+            }
+        }).addTo(map);
+    }
+
+    document.getElementById('mainFilter').addEventListener('input', applyVisualFilters);
+
+    function osmtogeojson(osm) {
+        let geo = { type: "FeatureCollection", features: [] }; let nodes = {};
+        osm.elements.forEach(el => { if(el.type === "node") nodes[el.id] = [el.lon, el.lat]; });
+        osm.elements.forEach(el => {
+            if(el.tags) {
+                let f = { type: "Feature", properties: el.tags, geometry: {} };
+                if(el.type === "node") {
+                    f.geometry = { type: "Point", coordinates: [el.lon, el.lat] }; geo.features.push(f);
+                } else if(el.type === "way" && el.nodes) {
+                    let coords = el.nodes.map(n => nodes[n]).filter(n => n);
+                    if(coords.length > 0) { f.geometry = { type: "LineString", coordinates: coords }; geo.features.push(f); }
+                }
+            }
+        });
+        return geo;
+    }
+</script>
+</body>
+</html>
