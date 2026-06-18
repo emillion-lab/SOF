@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>София Мастър ГИС Радар v3.4</title>
+    <title>София Мастър ГИС Радар v3.5</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -64,8 +64,8 @@
 
 <header>
     <div>
-        <h1>София Динамичен ГИС Радар v3.4</h1>
-        <p>Синхронизация по екран в реално време | Исторически архиви</p>
+        <h1>София Динамичен ГИС Радар v3.5</h1>
+        <p>Глобална синхронизация в реално време | Стабилна Overpass DE шина</p>
     </div>
     <span class="badge" style="background:#1e3a8a; border:1px solid #3b82f6;">GitHub Режим</span>
 </header>
@@ -131,7 +131,7 @@
             <div class="table-container">
                 <table id="gridTable">
                     <thead><tr id="gridHeader"><th>Чакане на данни...</th></tr></thead>
-                    <tbody id="gridBody"><tr><td>Движете картата, за да филтрирате списъка.</td></tr></tbody>
+                    <tbody id="gridBody"><tr><td>Заредете данни локално или синхронизирайте от OSM, за да активирате таблицата.</td></tr></tbody>
                 </table>
             </div>
         </div>
@@ -161,7 +161,7 @@
         const file = e.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        document.getElementById('statusBox').innerText = "Зареждане...";
+        document.getElementById('statusBox').innerText = "Зареждане на локален файл...";
         reader.onload = function(evt) {
             try {
                 rawFeatures = JSON.parse(evt.target.result);
@@ -175,34 +175,45 @@
 
     function loadLiveOSM() {
         const type = document.getElementById('osmQueryType').value;
-        document.getElementById('statusBox').innerText = "🚀 Дърпане от OSM...";
+        document.getElementById('statusBox').innerText = "🚀 Извличане от стабилен немски Overpass сървър...";
         
         const b = map.getBounds();
         const bbox = b.getSouth() + ',' + b.getWest() + ',' + b.getNorth() + ',' + b.getEast();
         let query = "";
 
+        // По-леки и бързи заявки за избягване на грешки при тайм-аут
         if (type === "buildings") {
-            query = '[out:json];(building=yes(' + bbox + ');building=residential(' + bbox + '););out body;>;out skel qt;';
+            query = '[out:json][timeout:25];(building=yes(' + bbox + ');building=residential(' + bbox + '););out body;>;out skel qt;';
         } else if (type === "charging") {
-            query = '[out:json];(node["amenity"="charging_station"](' + bbox + ');way["amenity"="charging_station"](' + bbox + '););out body;>;out skel qt;';
+            query = '[out:json][timeout:25];(node["amenity"="charging_station"](' + bbox + ');way["amenity"="charging_station"](' + bbox + '););out body;>;out skel qt;';
         } else if (type === "highways") {
-            query = '[out:json];way["highway"](' + bbox + ');out body;>;out skel qt;';
+            query = '[out:json][timeout:25];way["highway"](' + bbox + ');out body;>;out skel qt;';
         } else if (type === "industrial") {
-            query = '[out:json];(landuse=industrial(' + bbox + ');building=warehouse(' + bbox + '););out body;>;out skel qt;';
+            query = '[out:json][timeout:25];(landuse=industrial(' + bbox + ');building=warehouse(' + bbox + '););out body;>;out skel qt;';
         }
 
-        const url = "https://overpass.openstreetmap.fr/api/interpreter?data=" + encodeURIComponent(query);
+        // Стабилен немски сървър с по-висок приоритет на достъп
+        const url = "https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query);
 
         fetch(url)
-            .then(function(res) { return res.json(); })
+            .then(function(res) { 
+                if(!res.ok) throw new Error("Сървърът върна статус: " + res.status);
+                return res.json(); 
+            })
             .then(function(data) {
-                // Тук вече osmtogeojson ще съществува и няма да дава грешка!
+                if(!data || !data.elements || data.elements.length === 0) {
+                    document.getElementById('statusBox').innerText = "Няма обекти в този район.";
+                    return;
+                }
                 rawFeatures = osmtogeojson(data);
                 document.getElementById('totalCount').innerText = rawFeatures.features.length;
-                document.getElementById('statusBox').innerText = "Синхронизирано!";
+                document.getElementById('statusBox').innerText = "Синхронизирано успешно!";
                 applyVisualFilters();
             })
-            .catch(function() { document.getElementById('statusBox').innerText = "Грешка при връзката."; });
+            .catch(function(err) { 
+                console.error(err);
+                document.getElementById('statusBox').innerText = "Временна претовареност на OSM. Опитайте пак."; 
+            });
     }
 
     function applyVisualFilters() {
@@ -265,7 +276,7 @@
         if (geoJsonLayer) map.removeLayer(geoJsonLayer);
 
         if (dataList.length === 0) {
-            body.innerHTML = '<tr><td>Няма съвпадащи записи в този обхват.</td></tr>';
+            body.innerHTML = '<tr><td>Няма намерени записи в видимия обхват.</td></tr>';
             return;
         }
 
@@ -287,7 +298,7 @@
 
             finalCols.forEach(function(c) {
                 const td = document.createElement('td');
-                if (c === "Навигация") {
+                if (c === "Navigation" || c === "Навигация") {
                     let coords = f.geometry.type === "Point" ? f.geometry.coordinates : f.geometry.coordinates[0];
                     if (Array.isArray(coords[0])) coords = coords[0];
                     
