@@ -46,8 +46,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 
 /* MAP — фиксирана височина вместо flex:1 за да се рендира правилно */
 #map{
-  height: calc(100vh - 200px);
-  min-height: 280px;
+  height: calc(100vh - 340px);
+  min-height: 220px;
   z-index:1;
   background:#08111f;
 }
@@ -72,7 +72,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 
 /* GPS button */
 #gps-btn{
-  position:fixed;right:12px;bottom:70px;z-index:1500;
+  position:fixed;right:12px;bottom:120px;z-index:1500;
   width:44px;height:44px;border-radius:50%;
   background:var(--surface);border:1px solid var(--border);
   color:var(--cyan);font-size:20px;cursor:pointer;
@@ -80,6 +80,39 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
   box-shadow:0 2px 12px rgba(0,0,0,.5);
 }
 #gps-btn.active{background:#0d2a1a;border-color:var(--green);color:var(--green);}
+
+/* Fullscreen button */
+#fs-btn{
+  position:fixed;right:12px;bottom:70px;z-index:1500;
+  width:44px;height:44px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--text);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 12px rgba(0,0,0,.5);
+}
+#fs-btn.active{background:#0d1f38;border-color:var(--cyan);color:var(--cyan);}
+
+/* Fullscreen map mode */
+body.map-fullscreen .header,
+body.map-fullscreen .timeline-panel,
+body.map-fullscreen .ticker-bar { display:none !important; }
+body.map-fullscreen #map { height:100vh !important; height:100dvh !important; }
+body.map-fullscreen #legend { bottom:70px; }
+body.map-fullscreen #gps-btn { bottom:120px; }
+body.map-fullscreen #fs-btn  { bottom:70px; }
+
+/* Pulsing user location dot */
+@keyframes pulse-ring {
+  0%   { transform:scale(1);   opacity:.8; }
+  70%  { transform:scale(2.5); opacity:0;  }
+  100% { transform:scale(2.5); opacity:0;  }
+}
+.user-dot-pulse {
+  width:14px; height:14px; border-radius:50%;
+  background:#00e5ff;
+  box-shadow:0 0 0 0 rgba(0,229,255,.6);
+  animation:pulse-ring 1.8s ease-out infinite;
+}
 
 /* Legend */
 #legend{
@@ -137,6 +170,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;heigh
 
 <!-- GPS button -->
 <button id="gps-btn" title="GPS локация">📍</button>
+<button id="fs-btn"  title="Fullscreen карта">⛶</button>
 
 <!-- Legend -->
 <div id="legend">
@@ -240,7 +274,32 @@ const ZONES = [
   { id:"simenovo",      name:"Симеоново / Hill Side (Симеоновско шосе 97К)", icon:"🌲", lat:42.6395, lng:23.3310, radius:380, type:"residential_lux", wazeName:"Hill Side Sofia Симеоновско шосе 97" },
   { id:"manast",        name:"Манастирски ливади (луксозни жк)",      icon:"🏘", lat:42.6671, lng:23.3155, radius:380, type:"residential_lux", wazeName:"Манастирски ливади София" },
   { id:"boyana",        name:"Бояна / Драгалевци",                    icon:"🌳", lat:42.6348, lng:23.2889, radius:430, type:"residential_lux", wazeName:"Бояна квартал София" },
-  { id:"vitosha_vz",    name:"в.з. Симеоново / Камбаните",            icon:"⛰️",  lat:42.6275, lng:23.3480, radius:350, type:"residential_lux", wazeName:"вилна зона Симеоново София" },
+  { id:"vitosha_vz",    name:"в.з. Симеоново / Камбаните",            icon:"⛰️",  lat:42.6246, lng:23.3400, radius:350, type:"residential_lux", wazeName:"вилна зона Камбаните Симеоново Sofia" },
+
+  // ── ЗАПАД ──
+  { id:"lyulin",        name:"жк Люлин",                              icon:"🏘", lat:42.7050, lng:23.2650, radius:400, type:"residential",      wazeName:"жк Люлин Sofia Bulgaria" },
+  { id:"nadejda",       name:"жк Надежда",                            icon:"🏘", lat:42.7200, lng:23.2900, radius:350, type:"residential",      wazeName:"жк Надежда Sofia Bulgaria" },
+  { id:"obelya",        name:"Обеля",                                 icon:"🏘", lat:42.7300, lng:23.2700, radius:300, type:"residential",      wazeName:"кв Обеля Sofia Bulgaria" },
+  { id:"ovcha_kupel",   name:"Овча купел",                            icon:"🏘", lat:42.6680, lng:23.2720, radius:300, type:"residential",      wazeName:"жк Овча купел Sofia Bulgaria" },
+
+  // ── СЕВЕР ──
+  { id:"banishora",     name:"Банишора / Фондови жилища",             icon:"🏘", lat:42.7180, lng:23.3180, radius:280, type:"residential",      wazeName:"кв Банишора Sofia Bulgaria" },
+  { id:"iliantsi",      name:"Илиянци / Северен парк",               icon:"🏭", lat:42.7380, lng:23.3050, radius:300, type:"residential",      wazeName:"Илиянци Sofia Bulgaria" },
+
+  // ── ИЗТОК / ДРУЖБА ──
+  { id:"druzhba",       name:"Дружба 1+2 / Горубляне",               icon:"🏘", lat:42.6590, lng:23.4230, radius:380, type:"residential",      wazeName:"жк Дружба Sofia Bulgaria" },
+  { id:"musagenitsa",   name:"Мусагеница / Яворов",                   icon:"🏘", lat:42.6780, lng:23.3650, radius:280, type:"residential",      wazeName:"кв Мусагеница Sofia Bulgaria" },
+
+  // ── ДОПЪЛНИТЕЛНИ ОБЕКТИ ──
+  { id:"zoo",           name:"Зоологическа градина",                  icon:"🦁", lat:42.6730, lng:23.3310, radius:200, type:"leisure",          wazeName:"Зоологическа градина Sofia Bulgaria" },
+  { id:"sofiamed",      name:"Болница Софиямед",                      icon:"🏥", lat:42.6567, lng:23.3420, radius:160, type:"hospital",         wazeName:"Болница Софиямед Sofia Bulgaria" },
+  { id:"isul",          name:"ИСУЛ болница",                          icon:"🏥", lat:42.6943, lng:23.3590, radius:160, type:"hospital",         wazeName:"ИСУЛ болница Sofia Bulgaria" },
+  { id:"sopharma_bc",   name:"Sopharma Business Center",              icon:"🏢", lat:42.7000, lng:23.3290, radius:200, type:"office",           wazeName:"Sopharma Business Center Sofia" },
+  { id:"telus",         name:"Telus Tower / пл.Македония",            icon:"🏢", lat:42.6947, lng:23.3154, radius:180, type:"office",           wazeName:"Telus Tower Macedonia Square Sofia" },
+  { id:"millennium",    name:"Millennium Center (бул.Витоша)",        icon:"🏢", lat:42.6822, lng:23.3147, radius:200, type:"office",           wazeName:"Millennium Center Sofia" },
+  { id:"oval",          name:"Oval Business Center (Лозенец)",        icon:"🏢", lat:42.6640, lng:23.3340, radius:180, type:"office",           wazeName:"Oval Business Center Sofia" },
+  { id:"nvu",           name:"НВУ / Военна академия",                 icon:"🎓", lat:42.6895, lng:23.3625, radius:180, type:"university",       wazeName:"Военна академия Г Раковски Sofia Bulgaria" },
+  { id:"grand_arena",   name:"Grand Arena (кино / entertainment)",    icon:"🎬", lat:42.6246, lng:23.3519, radius:200, type:"leisure",          wazeName:"Grand Arena Cinema Sofia Bulgaria" },
 ];
 
 // ═══════════════════════════════════════════════
@@ -256,9 +315,13 @@ const BASE = {
   hotels_ctr:0.9, hotels_ndk:0.7, hotel_marinela:0.6,
   cjp:0.9, cab_north:0.8, ag_yug:0.7, ag_pod:0.5,
   arena:0.3, ndk:0.7, borisova:0.3, lozenets_wt:0.4, vasil_levski:0.3,
-  pirogov:0.8, alexand:0.7, vma:0.6, tokuda:0.5,
-  unss:0.5, nbu:0.4, tu:0.4, su:0.5,
+  pirogov:0.8, alexand:0.7, vma:0.6, tokuda:0.5, sofiamed:0.5, isul:0.6,
+  unss:0.5, nbu:0.4, tu:0.4, su:0.5, nvu:0.3,
   simenovo:0.4, manast:0.5, boyana:0.4, vitosha_vz:0.3,
+  lyulin:0.5, nadejda:0.4, obelya:0.3, ovcha_kupel:0.4,
+  banishora:0.4, iliantsi:0.3, druzhba:0.4, musagenitsa:0.4,
+  zoo:0.4, sopharma_bc:0.4, telus:0.5, millennium:0.4, oval:0.4,
+  grand_arena:0.3,
 };
 
 // ═══════════════════════════════════════════════
@@ -651,10 +714,16 @@ function startGPS(){
       userLng=pos.coords.longitude;
       // Place/update user marker
       if(!userMarker){
-        userMarker=L.circleMarker([userLat,userLng],{
-          radius:8,color:'#00e5ff',fillColor:'#00e5ff',fillOpacity:0.9,weight:2
-        }).addTo(map);
-        userMarker.bindTooltip('Вие сте тук',{permanent:false});
+        const pulseIcon = L.divIcon({
+          className:'',
+          html:`<div style="position:relative;width:24px;height:24px;">
+            <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,229,255,.25);animation:pulse-ring 1.8s ease-out infinite;"></div>
+            <div style="position:absolute;inset:5px;border-radius:50%;background:#00e5ff;border:2px solid #fff;box-shadow:0 0 8px #00e5ff;"></div>
+          </div>`,
+          iconSize:[24,24], iconAnchor:[12,12],
+        });
+        userMarker=L.marker([userLat,userLng],{icon:pulseIcon,zIndexOffset:1000}).addTo(map);
+        userMarker.bindTooltip('Вие сте тук',{permanent:false,offset:[12,0]});
         map.setView([userLat,userLng],14);
       } else {
         userMarker.setLatLng([userLat,userLng]);
@@ -765,6 +834,142 @@ function loadFlights(){
 }
 
 // ═══════════════════════════════════════════════
+// NOMINATIM AUTO-GEOCODE
+// При зареждане browser-ът пита OSM за реалните
+// координати и ги кешира. Следващото зареждане
+// използва кеша — не вика API.
+// ═══════════════════════════════════════════════
+const NOMINATIM_QUERIES = {
+  airport:       "Летище София SOF Bulgaria",
+  bpark:         "Business Park Sofia Mladost Bulgaria",
+  garitage:      "Garitage Park Donka Ushlinova 2 Sofia Bulgaria",
+  polygraphia:   "Polygraphia Office Center Tsarigradsko 47 Sofia Bulgaria",
+  capital_fort:  "Capital Fort Tsarigradsko shose 90 Sofia Bulgaria",
+  megapark:      "Megapark Sofia Bulgaria",
+  advance_bc:    "Advance Business Center Mladost Sofia Bulgaria",
+  park_lane:     "Park Lane Office Center Srebarna 16 Sofia Bulgaria",
+  expo2000:      "Expo 2000 Tsarigradsko shose Sofia Bulgaria",
+  sofia_tower:   "Sofia Tower Mall of Sofia Stamboliyski Bulgaria",
+  iec:           "Inter Expo Center Tsarigradsko 147 Sofia Bulgaria",
+  sky_fort:      "Sky Fort Tsarigradsko shose Sofia Bulgaria",
+  serdika:       "Serdika Center Sitnyakovo Sofia Bulgaria",
+  paradise:      "Paradise Center Cherni vrah Sofia Bulgaria",
+  ring_mall:     "Sofia Ring Mall Okolovrasten pat Bulgaria",
+  the_mall:      "The Mall Sofia Tsarigradsko 115 Bulgaria",
+  bulgaria_mall: "Bulgaria Mall Bulgaria blvd Sofia Bulgaria",
+  park_center:   "Park Center Sofia Cherni vrah Bulgaria",
+  hotels_ctr:    "Radisson Blu Sofia Tsar Osvoboditel Bulgaria",
+  hotels_ndk:    "Kempinski Hotel Zografski James Boucher Sofia Bulgaria",
+  hotel_marinela:"Hotel Marinela Sofia Cherni vrah 100 Bulgaria",
+  cjp:           "Central Railway Station Sofia Maria Luiza Bulgaria",
+  cab_north:     "Central Bus Station Sofia Maria Luiza 100 Bulgaria",
+  ag_yug:        "Автогара Юг Sofia Bulgaria",
+  ag_pod:        "Автогара Подуяне Sofia Bulgaria",
+  arena:         "Arena Sofia 8888 Asen Yordanov Bulgaria",
+  ndk:           "National Palace of Culture NDK Sofia Bulgaria",
+  borisova:      "Borisova gradina park Sofia Bulgaria",
+  vasil_levski:  "National Stadium Vasil Levski Sofia Bulgaria",
+  lozenets_wt:   "Vodna kula Lozenets Sofia Bulgaria",
+  pirogov:       "UMBALSM Pirogov Totleben 21 Sofia Bulgaria",
+  alexand:       "UMBAL Aleksandrovska Sofia Bulgaria",
+  vma:           "Voenno-medicinska akademia Sofia Bulgaria",
+  tokuda:        "Tokuda Hospital Sofia Bulgaria",
+  unss:          "UNSS University National World Economy Sofia Bulgaria",
+  nbu:           "New Bulgarian University Sofia Bulgaria",
+  tu:            "Technical University Sofia Darvenitsa Bulgaria",
+  su:            "Sofia University St Kliment Ohridski Bulgaria",
+  simenovo:      "Hill Side Sofia Simeonovsko shose 97 Bulgaria",
+  manast:        "Manastirski livadi Sofia Bulgaria",
+  boyana:        "Boyana Sofia Bulgaria",
+  vitosha_vz:    "вилна зона Камбаните Симеоново Sofia Bulgaria",
+  bulgaria_towers:"Bulgaria Towers Todor Kableshkov Sofia Bulgaria",
+};
+
+const CACHE_KEY = 'sofia_taxi_coords_v3';
+const CACHE_TTL  = 7 * 24 * 3600 * 1000; // 7 дни
+
+async function geocodeZones() {
+  // Load cache
+  let cache = {};
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Date.now() - parsed.ts < CACHE_TTL) cache = parsed.coords;
+    }
+  } catch(e) {}
+
+  const zMap = {};
+  ZONES.forEach(z => { zMap[z.id] = z; });
+
+  // Geocode only missing ones
+  const missing = ZONES.filter(z => !cache[z.id] && NOMINATIM_QUERIES[z.id]);
+  if (missing.length === 0) {
+    applyGeoCache(cache, zMap);
+    return;
+  }
+
+  // Show status
+  const badge = document.getElementById('airport-badge');
+  const origText = badge.textContent;
+
+  let i = 0;
+  for (const z of missing) {
+    const q = NOMINATIM_QUERIES[z.id];
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, { headers: {'User-Agent': 'SofiaTaxiDemand/1.0'} });
+      const data = await res.json();
+      if (data && data[0]) {
+        cache[z.id] = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      }
+    } catch(e) { /* skip */ }
+    i++;
+    badge.textContent = `📡 ${i}/${missing.length}`;
+    await new Promise(r => setTimeout(r, 1100)); // Nominatim: max 1 req/sec
+  }
+
+  // Save cache
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), coords: cache })); } catch(e){}
+
+  badge.textContent = origText;
+  applyGeoCache(cache, zMap);
+}
+
+function applyGeoCache(cache, zMap) {
+  let updated = 0;
+  for (const [id, coords] of Object.entries(cache)) {
+    if (zMap[id] && coords) {
+      zMap[id].lat = coords.lat;
+      zMap[id].lng = coords.lng;
+      updated++;
+    }
+  }
+  if (updated > 0) {
+    // Rebuild circles with corrected coords
+    for (const [id, circle] of Object.entries(circleMap)) {
+      const z = zMap[id];
+      if (z) circle.setLatLng([z.lat, z.lng]);
+    }
+    render(currentHour);
+  }
+}
+
+// ── Fullscreen ──
+let isFullscreen = false;
+const fsBtn = document.getElementById('fs-btn');
+fsBtn.addEventListener('click', () => {
+  isFullscreen = !isFullscreen;
+  document.body.classList.toggle('map-fullscreen', isFullscreen);
+  fsBtn.textContent = isFullscreen ? '✕' : '⛶';
+  fsBtn.classList.toggle('active', isFullscreen);
+  setTimeout(() => { map.invalidateSize(); drawSparkline(currentHour); }, 200);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && isFullscreen) fsBtn.click();
+});
+
+// ═══════════════════════════════════════════════
 // SLIDER
 // ═══════════════════════════════════════════════
 const slider=document.getElementById('time-slider');
@@ -789,6 +994,9 @@ buildCircles();
 buildTicker();
 render(currentHour);
 loadFlights();
+
+// Geocode всички локации от OSM (кешира за 7 дни)
+geocodeZones();
 
 // Re-render canvas after fonts/layout settle
 setTimeout(()=>{ drawSparkline(currentHour); map.invalidateSize(); }, 300);
