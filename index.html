@@ -747,32 +747,19 @@ const TRAFFIC_INFO = {
 const trafficMarkers = {}; // id → L.marker (div icon)
 
 function makeTrafficIcon(info, active){
-  if(!active){
-    return L.divIcon({
-      className:'',
-      html:`<div style="width:36px;height:36px;border-radius:50%;background:#1a0a2e88;border:1px solid #3a206066;display:flex;align-items:center;justify-content:center;font-size:16px;opacity:0.4">🚦</div>`,
-      iconSize:[36,36], iconAnchor:[18,18],
-    });
-  }
+  const opacity = active ? '1' : '0.35';
+  const glow    = active ? `0 0 8px ${info.color}` : 'none';
+  const size    = active ? 14 : 10;
   return L.divIcon({
     className:'',
     html:`<div style="
-      background:#0d0520f0;
-      border:2px solid ${info.color};
-      border-radius:10px;
-      padding:5px 8px;
-      font-family:'Share Tech Mono',monospace;
-      text-align:center;
-      box-shadow:0 0 12px ${info.color}88;
-      animation:jam-blink 2s ease-in-out infinite;
-      min-width:90px;
-    ">
-      <div style="font-size:18px;line-height:1">🚦</div>
-      <div style="font-size:9px;color:#888;margin-top:1px">${info.jamDir}</div>
-      <div style="font-size:16px;color:${info.color};font-weight:bold;margin:1px 0">${info.freeArrow} СВОБОДНО</div>
-      <div style="font-size:9px;color:#00e5ff">${info.freeDir}</div>
-    </div>`,
-    iconSize:[100,80], iconAnchor:[50,40],
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:${info.color};
+      box-shadow:${glow};
+      opacity:${opacity};
+      ${active ? 'animation:jam-blink 2s ease-in-out infinite;' : ''}
+    "></div>`,
+    iconSize:[size,size], iconAnchor:[size/2,size/2],
   });
 }
 
