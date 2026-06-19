@@ -2,171 +2,476 @@
 <html lang="bg">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SOF Taxi Radar</title>
-
 <style>
-body{
-  font-family:Arial;
-  background:#0b1220;
-  color:#fff;
-  padding:15px;
-}
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;700&display=swap');
 
-h2{margin-bottom:5px}
+  :root {
+    --bg:        #070d1a;
+    --surface:   #0e1829;
+    --border:    #1a2d4a;
+    --amber:     #f59e0b;
+    --amber-dim: #7c5200;
+    --cyan:      #00e5ff;
+    --cyan-dim:  #004d57;
+    --green:     #22c55e;
+    --red:       #ef4444;
+    --muted:     #4a6080;
+    --text:      #c8daf0;
+  }
 
-.bar{
-  display:flex;
-  height:20px;
-  border-radius:4px;
-  overflow:hidden;
-}
+  * { box-sizing: border-box; margin: 0; padding: 0; }
 
-.cell{
-  flex:1;
-  font-size:10px;
-  text-align:center;
-  line-height:20px;
-}
+  body {
+    font-family: 'Inter', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 20px;
+  }
 
-.red{ background:#ef4444; }
-.orange{ background:#f59e0b; }
-.green{ background:#22c55e; }
-.gray{ background:#374151; }
+  /* ── HEADER ── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
 
-.block{
-  background:#111827;
-  padding:10px;
-  margin-top:10px;
-  border-radius:6px;
-}
+  .radar-icon {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
 
-.big{
-  font-size:28px;
-  font-weight:bold;
-}
+  .radar-icon svg {
+    width: 100%;
+    height: 100%;
+  }
 
-.good{color:#22c55e}
-.warn{color:#f59e0b}
-.bad{color:#ef4444}
+  .sweep {
+    transform-origin: 50% 50%;
+    animation: sweep 3s linear infinite;
+  }
 
+  @keyframes sweep {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  .header-text h1 {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 22px;
+    color: var(--cyan);
+    letter-spacing: 2px;
+  }
+
+  .header-text p {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .live-badge {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--green);
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+  }
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: blink 1.4s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.2; }
+  }
+
+  /* ── GRID ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  @media (max-width: 560px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    pointer-events: none;
+  }
+
+  .card.accent-amber::before { box-shadow: inset 0 0 0 1px var(--amber-dim); }
+  .card.accent-cyan::before  { box-shadow: inset 0 0 0 1px var(--cyan-dim); }
+
+  .card-label {
+    font-size: 10px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ── STATUS ── */
+  .status-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 36px;
+    font-weight: bold;
+    line-height: 1;
+  }
+
+  .status-hint {
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .col-good { color: var(--green); }
+  .col-warn { color: var(--amber); }
+  .col-bad  { color: var(--red); }
+
+  /* ── CURRENT HOUR COUNT ── */
+  .count-val {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 48px;
+    color: var(--cyan);
+    line-height: 1;
+  }
+
+  .count-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ── HEATMAP ── */
+  .heatmap-card {
+    grid-column: 1 / -1;
+  }
+
+  .heatmap-wrap {
+    position: relative;
+    margin-top: 8px;
+  }
+
+  .bar {
+    display: flex;
+    height: 36px;
+    border-radius: 6px;
+    overflow: hidden;
+    gap: 2px;
+    background: transparent;
+  }
+
+  .cell {
+    flex: 1;
+    font-size: 9px;
+    font-family: 'Share Tech Mono', monospace;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.6);
+    border-radius: 3px;
+    cursor: default;
+    transition: opacity .15s;
+    position: relative;
+  }
+
+  .cell:hover { opacity: 0.75; }
+
+  .cell.lvl0 { background: #111c2e; color: var(--muted); }
+  .cell.lvl1 { background: #1a4530; }
+  .cell.lvl2 { background: #7c5200; }
+  .cell.lvl3 { background: #c2410c; }
+
+  .cell.now-marker {
+    outline: 2px solid var(--cyan);
+    outline-offset: -2px;
+  }
+
+  .heatmap-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .leg-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .leg-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  /* ── NEXT WINDOWS ── */
+  .windows-card {
+    grid-column: 1 / -1;
+  }
+
+  .window-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .window-item:last-child { border-bottom: none; }
+
+  .window-time {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--cyan);
+    min-width: 100px;
+  }
+
+  .window-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .window-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+
+  .fill-hot  { background: var(--red);   width: 100%; }
+  .fill-mid  { background: var(--amber); width: 66%; }
+
+  .window-tag {
+    font-size: 11px;
+    font-family: 'Share Tech Mono', monospace;
+    min-width: 80px;
+    text-align: right;
+  }
+
+  .tag-hot  { color: var(--red); }
+  .tag-mid  { color: var(--amber); }
+
+  .empty-msg {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 10px 0;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 20px;
+    font-size: 10px;
+    color: var(--muted);
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 1px;
+    text-align: center;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
 </style>
 </head>
-
 <body>
 
-<h2>✈️ Airport Heatmap (деня)</h2>
-
-<div id="heat"></div>
-
-<div class="block">
-<div>Сега:</div>
-<div id="status" class="big">...</div>
-<div id="hint"></div>
+<!-- HEADER -->
+<div class="header">
+  <div class="radar-icon">
+    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="22" cy="22" r="20" stroke="#1a2d4a" stroke-width="1.5"/>
+      <circle cx="22" cy="22" r="13" stroke="#1a2d4a" stroke-width="1"/>
+      <circle cx="22" cy="22" r="6"  stroke="#1a2d4a" stroke-width="1"/>
+      <line x1="22" y1="2"  x2="22" y2="42" stroke="#1a2d4a" stroke-width="0.8"/>
+      <line x1="2"  y1="22" x2="42" y2="22" stroke="#1a2d4a" stroke-width="0.8"/>
+      <g class="sweep">
+        <path d="M22 22 L22 2 A20 20 0 0 1 39.3 11.5 Z" fill="rgba(0,229,255,0.15)"/>
+        <line x1="22" y1="22" x2="22" y2="2" stroke="#00e5ff" stroke-width="1.5"/>
+      </g>
+      <circle cx="22" cy="22" r="2.5" fill="#00e5ff"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>SOF TAXI RADAR</h1>
+    <p>Летище София · Пристигания</p>
+  </div>
+  <div class="live-badge">
+    <div class="live-dot"></div>
+    LIVE
+  </div>
 </div>
 
-<div class="block">
-<h3>Следващи силни моменти</h3>
-<div id="next"></div>
+<!-- HEATMAP -->
+<div class="grid">
+  <div class="card heatmap-card">
+    <div class="card-label">▣ Интензивност по час (24h)</div>
+    <div class="heatmap-wrap">
+      <div class="bar" id="heat"></div>
+    </div>
+    <div class="heatmap-legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#111c2e; border:1px solid #1a2d4a"></div> Тихо</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#1a4530"></div> Нормално</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#7c5200"></div> Добре</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#c2410c"></div> Пик 🔥</div>
+      <div class="leg-item" style="margin-left:auto">
+        <div class="leg-dot" style="background:transparent; outline:2px solid #00e5ff; outline-offset:-1px"></div>
+        Текущ час
+      </div>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="card accent-amber">
+    <div class="card-label">◈ Сигнал сега</div>
+    <div class="status-val" id="status">—</div>
+    <div class="status-hint" id="hint"></div>
+  </div>
+
+  <!-- COUNT -->
+  <div class="card accent-cyan">
+    <div class="card-label">↓ Пристигания тази час</div>
+    <div class="count-val" id="count">—</div>
+    <div class="count-label" id="count-sub"></div>
+  </div>
+
+  <!-- NEXT WINDOWS -->
+  <div class="card windows-card">
+    <div class="card-label">◷ Следващи силни прозорци</div>
+    <div id="next"></div>
+  </div>
 </div>
+
+<div class="footer" id="ts"></div>
 
 <script>
-
 fetch('flight-cache.json')
-.then(r=>r.json())
-.then(data=>{
+  .then(r => r.json())
+  .then(data => {
+    const flights = data.data || [];
+    const now     = new Date();
+    const curH    = now.getHours();
+    const hours   = Array(24).fill(0);
 
-let flights = data.data || [];
+    flights.forEach(f => {
+      if (!f.arrival?.scheduled) return;
+      const t       = new Date(f.arrival.estimated || f.arrival.scheduled);
+      const origin  = (f.departure?.airport || '').toLowerCase();
+      const nonEU   = origin.includes('tur') || origin.includes('israel') || origin.includes('uk');
+      const ready   = new Date(t.getTime() + (nonEU ? 20 : 10) * 60000);
+      hours[ready.getHours()]++;
+    });
 
-let hours = Array(24).fill(0);
+    const score = hours.map(v => v >= 8 ? 3 : v >= 4 ? 2 : v >= 2 ? 1 : 0);
 
-let now = new Date();
+    // ── HEATMAP ──
+    const bar = document.getElementById('heat');
+    score.forEach((s, i) => {
+      const lvl = `lvl${s}`;
+      const now_ = i === curH ? ' now-marker' : '';
+      const d = document.createElement('div');
+      d.className = `cell ${lvl}${now_}`;
+      d.title = `${i}:00 — ${hours[i]} рейса`;
+      d.textContent = i;
+      bar.appendChild(d);
+    });
 
-flights.forEach(f=>{
-    if(!f.arrival || !f.arrival.scheduled) return;
+    // ── STATUS ──
+    const s = score[curH];
+    const statusMap = {
+      0: { txt: 'Тихо',       cls: 'col-bad',  hint: 'Не си губи времето тук' },
+      1: { txt: 'Нормално',   cls: 'col-warn', hint: 'Може да пробваш' },
+      2: { txt: 'Активно',    cls: 'col-good', hint: '✔ Добър момент' },
+      3: { txt: 'ПИК',        cls: 'col-good', hint: '🔥 ВЛЕЗ СЕГА' },
+    };
 
-    let t = new Date(f.arrival.estimated || f.arrival.scheduled);
+    let info = statusMap[s];
 
-    let country = (f.departure?.airport || "").toLowerCase();
-
-    let nonEU = country.includes("tur") || country.includes("israel") || country.includes("uk");
-
-    let delay = nonEU?20:10;
-
-    let ready = new Date(t.getTime() + delay*60000);
-
-    let h = ready.getHours();
-
-    hours[h]++;
-});
-
-
-// score per hour
-let score = hours.map(v=>{
-    if(v>=8) return 3;
-    if(v>=4) return 2;
-    if(v>=2) return 1;
-    return 0;
-});
-
-
-// render heatmap
-let html='<div class="bar">';
-
-score.forEach((s,i)=>{
-    let cls="gray";
-
-    if(s==3) cls="red";
-    else if(s==2) cls="orange";
-    else if(s==1) cls="green";
-
-    html+=`<div class="cell ${cls}" title="${i}:00">${i}</div>`;
-});
-
-html+='</div>';
-
-document.getElementById("heat").innerHTML=html;
-
-
-// NOW status
-let currentHour = now.getHours();
-let s = score[currentHour];
-
-let txt="Спокойно";
-let cls="bad";
-let hint="Не си губи времето";
-
-if(s==1){ txt="Става"; cls="warn"; hint="Можеш да пробваш"; }
-if(s>=2){ txt="Добро време"; cls="good"; hint="ВЛЕЗ СЕГА"; }
-
-// extra: ако пик след 1 час
-if(score[currentHour+1]>=2){
-    hint="Изчакай ~1 час";
-}
-
-document.getElementById("status").innerHTML =
-`<span class="${cls}">${txt}</span>`;
-
-document.getElementById("hint").innerHTML = hint;
-
-
-// next best windows
-let nextHTML="";
-
-score.forEach((v,i)=>{
-    if(v>=2){
-        nextHTML += `
-        <div>
-        ${i}:00 - ${(i+1)}:00 → ${v>=3?"🔥 силно":"средно"}
-        </div>`;
+    // lookahead: ако следващия час е по-добър
+    const nextScore = score[curH + 1] ?? 0;
+    if (nextScore > s && nextScore >= 2) {
+      info = { txt: 'Изчакай', cls: 'col-warn', hint: `Пик след ~1 час (${curH + 1}:00)` };
     }
-});
 
-document.getElementById("next").innerHTML=nextHTML || "Няма силни моменти";
+    document.getElementById('status').innerHTML =
+      `<span class="${info.cls}">${info.txt}</span>`;
+    document.getElementById('hint').textContent = info.hint;
 
+    // ── COUNT ──
+    document.getElementById('count').textContent = hours[curH];
+    document.getElementById('count-sub').textContent =
+      `рейса готови ${curH}:00 – ${curH + 1}:00`;
 
-});
+    // ── NEXT WINDOWS ──
+    const nextDiv = document.getElementById('next');
+    const peaks   = score.reduce((acc, v, i) => {
+      if (v >= 2) acc.push({ h: i, v });
+      return acc;
+    }, []);
 
+    if (peaks.length === 0) {
+      nextDiv.innerHTML = '<div class="empty-msg">// няма силни прозорци днес</div>';
+    } else {
+      nextDiv.innerHTML = peaks.map(({ h, v }) => `
+        <div class="window-item">
+          <div class="window-time">${String(h).padStart(2,'0')}:00 – ${String(h+1).padStart(2,'0')}:00</div>
+          <div class="window-bar">
+            <div class="window-fill ${v >= 3 ? 'fill-hot' : 'fill-mid'}"></div>
+          </div>
+          <div class="window-tag ${v >= 3 ? 'tag-hot' : 'tag-mid'}">
+            ${v >= 3 ? '🔥 ПИК' : '▲ ДОБРЕ'}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ── FOOTER ──
+    document.getElementById('ts').textContent =
+      `АКТУАЛИЗИРАНО: ${now.toLocaleTimeString('bg-BG')} · ДАННИ: flight-cache.json`;
+  })
+  .catch(() => {
+    document.getElementById('status').innerHTML =
+      '<span class="col-bad">ГРЕШКА</span>';
+    document.getElementById('hint').textContent = 'Не може да зареди flight-cache.json';
+    document.getElementById('ts').textContent = 'OFFLINE';
+  });
 </script>
-
 </body>
 </html>
