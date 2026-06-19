@@ -173,30 +173,30 @@ if (typeof L === 'undefined') {
 }
 const ZONES = [
   // type: airport / office / mall / hotel / transit / venue / hospital / university / residential_lux / leisure
-  { id:"airport",    name:"Летище София (СОФ)",                    icon:"✈️",  lat:42.6953, lng:23.4068, radius:600, type:"airport" },
+  { id:"airport",    name:"Летище София (СОФ)",                    icon:"✈️",  lat:42.6950, lng:23.4083, radius:600, type:"airport" },
 
   // ── ОФИСИ КЛАС А ──
-  { id:"bpark",      name:"Business Park Sofia",                   icon:"🏢", lat:42.6298, lng:23.3744, radius:400, type:"office" },
-  { id:"garitage",   name:"Garitage Park офиси",                   icon:"🏢", lat:42.6344, lng:23.3568, radius:350, type:"office" },
-  { id:"polygraphia",name:"Polygraphia Office Center",             icon:"🏢", lat:42.6667, lng:23.3856, radius:280, type:"office" },
-  { id:"capital_fort",name:"Capital Fort",                         icon:"🏢", lat:42.6541, lng:23.3793, radius:250, type:"office" },
-  { id:"megapark",   name:"Megapark (до The Mall)",                icon:"🏢", lat:42.6605, lng:23.3810, radius:280, type:"office" },
-  { id:"advance_bc", name:"Advance Business Center I+II",          icon:"🏢", lat:42.6290, lng:23.3725, radius:250, type:"office" },
-  { id:"bulgaria_towers",name:"Bulgaria Towers (North+South)",     icon:"🏢", lat:42.6540, lng:23.3528, radius:220, type:"office" },
+  { id:"bpark",      name:"Business Park Sofia",                   icon:"🏢", lat:42.6292, lng:23.3731, radius:400, type:"office" },
+  { id:"garitage",   name:"Garitage Park офиси",                   icon:"🏢", lat:42.6227, lng:23.3735, radius:350, type:"office" },
+  { id:"polygraphia",name:"Polygraphia Office Center",             icon:"🏢", lat:42.6700, lng:23.3820, radius:280, type:"office" },
+  { id:"capital_fort",name:"Capital Fort",                         icon:"🏢", lat:42.6464, lng:23.3958, radius:250, type:"office" },
+  { id:"megapark",   name:"Megapark (до The Mall)",                icon:"🏢", lat:42.6605, lng:23.3822, radius:280, type:"office" },
+  { id:"advance_bc", name:"Advance Business Center I+II",          icon:"🏢", lat:42.6290, lng:23.3720, radius:250, type:"office" },
+  { id:"bulgaria_towers",name:"Bulgaria Towers (North+South)",     icon:"🏢", lat:42.6641, lng:23.2885, radius:220, type:"office" },
   { id:"park_lane",  name:"Park Lane Office (НПЗ Хладилника)",     icon:"🏢", lat:42.6618, lng:23.3441, radius:220, type:"office" },
   { id:"expo2000",   name:"Expo 2000 / Ellipse Center",            icon:"🏢", lat:42.6535, lng:23.3958, radius:300, type:"office" },
-  { id:"sofia_tower",name:"Sofia Tower I+II (Mall of Sofia)",      icon:"🏢", lat:42.6958, lng:23.3263, radius:200, type:"office" },
+  { id:"sofia_tower",name:"Sofia Tower I+II (Mall of Sofia)",      icon:"🏢", lat:42.6981, lng:23.3086, radius:200, type:"office" },
   { id:"iec",        name:"IEC Sofia (Интер Експо Център)",        icon:"🏢", lat:42.6737, lng:23.4012, radius:300, type:"office" },
   { id:"office_iztok",name:"Офис зона Изток/Докторски",           icon:"🏢", lat:42.6762, lng:23.3620, radius:300, type:"office" },
   { id:"office_center",name:"Офис Център (бул.Витоша/Патриарх)",  icon:"🏢", lat:42.6900, lng:23.3220, radius:250, type:"office" },
 
   // ── МОЛОВЕ ──
-  { id:"serdika",    name:"Мол Сердика",                           icon:"🛍", lat:42.7012, lng:23.3228, radius:250, type:"mall" },
-  { id:"paradise",   name:"Paradise Center",                       icon:"🛍", lat:42.6567, lng:23.3327, radius:300, type:"mall" },
-  { id:"mall_sofia", name:"Mall of Sofia",                         icon:"🛍", lat:42.6958, lng:23.3264, radius:220, type:"mall" },
-  { id:"ring_mall",  name:"Ring Mall / IKEA",                      icon:"🛍", lat:42.6513, lng:23.3478, radius:350, type:"mall" },
-  { id:"the_mall",   name:"The Mall Sofia",                        icon:"🛍", lat:42.6603, lng:23.3823, radius:300, type:"mall" },
-  { id:"markovo",    name:"Мол Маркова Тeпе (Младост)",            icon:"🛍", lat:42.6374, lng:23.3756, radius:250, type:"mall" },
+  { id:"serdika",    name:"Мол Сердика",                           icon:"🛍", lat:42.6920, lng:23.3540, radius:250, type:"mall" },
+  { id:"paradise",   name:"Paradise Center",                       icon:"🛍", lat:42.6578, lng:23.3144, radius:300, type:"mall" },
+  { id:"mall_sofia", name:"Mall of Sofia",                         icon:"🛍", lat:42.6981, lng:23.3086, radius:220, type:"mall" },
+  { id:"ring_mall",  name:"Ring Mall / IKEA",                      icon:"🛍", lat:42.6246, lng:23.3519, radius:350, type:"mall" },
+  { id:"the_mall",   name:"The Mall Sofia",                        icon:"🛍", lat:42.6605, lng:23.3822, radius:300, type:"mall" },
+  { id:"markovo",    name:"България Мол / Мол Маркова Тепе",       icon:"🛍", lat:42.6641, lng:23.2885, radius:250, type:"mall" },
 
   // ── ХОТЕЛИ ──
   { id:"hotels_ctr", name:"Хотели Център (Radisson/Hilton/Marinela)",icon:"🏨",lat:42.6953, lng:23.3242, radius:300, type:"hotel" },
@@ -454,7 +454,17 @@ function showZonePopup(zid){
         <div style="width:${pct}%;height:100%;background:${c.fill};border-radius:2px"></div>
       </div>
       <div class="popup-ev">${evHtml}</div>
-      <button class="popup-nav-btn" onclick="startNav('${zid}')">🧭 Навигирай натам</button>
+      <button class="popup-nav-btn" onclick="startNav('${zid}')">🧭 Навигирай (in-app)</button>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <a href="https://waze.com/ul?ll=${z.lat},${z.lng}&navigate=yes&zoom=17" target="_blank"
+           style="flex:1;display:block;text-align:center;font-size:10px;color:#00e5ff;font-family:'Share Tech Mono',monospace;text-decoration:none;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;">
+          🚗 Waze ↗
+        </a>
+        <a href="https://www.google.com/maps?q=${z.lat},${z.lng}" target="_blank"
+           style="flex:1;display:block;text-align:center;font-size:10px;color:#4a6080;font-family:'Share Tech Mono',monospace;text-decoration:none;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;">
+          📍 Google ↗
+        </a>
+      </div>
     `).openOn(map);
 }
 
