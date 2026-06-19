@@ -763,6 +763,60 @@ function makeTrafficIcon(info, active){
   });
 }
 
+function showZonePopup(zid){
+  const z=ZONES.find(x=>x.id===zid);
+  if(!z) return;
+  const{scores,activeEvents}=computeScores(currentHour);
+  const s=scores[zid]||0;
+  const c=demandColor(s, z.type);
+  const evs=(activeEvents[zid]||[]).slice(0,3);
+  const trafficInfo=TRAFFIC_INFO[zid];
+  const isJam=z.type==='traffic';
+
+  let evHtml;
+  if(isJam && trafficInfo){
+    evHtml=`
+      <div style="color:#a855f7;font-weight:600;font-size:13px;margin-bottom:4px">
+        🚦 ${trafficInfo.jamDir}
+      </div>
+      <div style="color:#00e5ff;font-size:12px;margin-bottom:4px">
+        ✅ Свободно: ${trafficInfo.freeDir}
+      </div>
+      <div style="background:#1a0a2e;border:1px solid #a855f7;border-radius:6px;padding:6px 8px;font-size:11px;color:#d08dff;margin-bottom:4px">
+        💡 Карай ${trafficInfo.freeArrow} — обратно на задръстването!
+      </div>
+      <div style="font-size:10px;color:#4a6080">⏰ ${trafficInfo.time}</div>`;
+  } else {
+    evHtml=evs.length
+      ? evs.map(e=>`<div>• ${e.name}</div>`).join('')
+      : '<div style="color:#4a6080">Базово търсене</div>';
+  }
+
+  const pct=Math.min(100,(s/4.5)*100);
+  L.popup({maxWidth:240,className:'dark-popup'})
+    .setLatLng([z.lat,z.lng])
+    .setContent(`
+      <div class="popup-title">${z.icon} ${z.name}</div>
+      <div class="popup-score" style="color:${c.fill}">${s.toFixed(1)} <span style="font-size:12px">${c.label}</span></div>
+      <div style="height:4px;background:#182d47;border-radius:2px;margin:6px 0">
+        <div style="width:${pct}%;height:100%;background:${c.fill};border-radius:2px"></div>
+      </div>
+      <div class="popup-ev">${evHtml}</div>
+      ${!isJam ? `
+      <button class="popup-nav-btn" onclick="startNav('${zid}')">🧭 Навигирай (in-app)</button>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <a href="https://waze.com/ul?q=${encodeURIComponent(z.wazeName||z.name)}&navigate=yes" target="_blank"
+           style="flex:1;display:block;text-align:center;font-size:10px;color:#00e5ff;font-family:'Share Tech Mono',monospace;text-decoration:none;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;">
+          🚗 Waze ↗
+        </a>
+        <a href="https://www.google.com/maps?q=${z.lat},${z.lng}" target="_blank"
+           style="flex:1;display:block;text-align:center;font-size:10px;color:#4a6080;font-family:'Share Tech Mono',monospace;text-decoration:none;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;">
+          📍 Google ↗
+        </a>
+      </div>` : ''}
+    `).openOn(map);
+}
+
 function buildCircles(){
   ZONES.forEach(z=>{
     if(z.type==='traffic'){
