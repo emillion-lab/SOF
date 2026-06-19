@@ -3,475 +3,669 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SOF Taxi Radar</title>
+<title>Sofia Taxi Demand Map</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;500;600&display=swap');
 
-  :root {
-    --bg:        #070d1a;
-    --surface:   #0e1829;
-    --border:    #1a2d4a;
-    --amber:     #f59e0b;
-    --amber-dim: #7c5200;
-    --cyan:      #00e5ff;
-    --cyan-dim:  #004d57;
-    --green:     #22c55e;
-    --red:       #ef4444;
-    --muted:     #4a6080;
-    --text:      #c8daf0;
-  }
+:root {
+  --bg:      #070d1a;
+  --surface: #0d1929;
+  --border:  #182d47;
+  --amber:   #f59e0b;
+  --cyan:    #00e5ff;
+  --green:   #22c55e;
+  --red:     #ef4444;
+  --orange:  #f97316;
+  --muted:   #4a6080;
+  --text:    #c8daf0;
+  --mono:    'Share Tech Mono', monospace;
+  --sans:    'Inter', sans-serif;
+}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
 
-  body {
-    font-family: 'Inter', Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100vh;
-    padding: 20px;
-  }
+/* HEADER */
+.header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.header h1 { font-family: var(--mono); font-size: 17px; color: var(--cyan); letter-spacing: 2px; }
+.header p  { font-size: 10px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
+.live-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: blink 1.4s infinite; margin-left: auto; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
 
-  /* ── HEADER ── */
-  .header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid var(--border);
-  }
+/* TIME SLIDER */
+.time-bar {
+  background: var(--surface);
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.time-label { font-family: var(--mono); font-size: 13px; color: var(--cyan); margin-bottom: 8px; }
+.slider-wrap { position: relative; }
+input[type=range] {
+  width: 100%; -webkit-appearance: none; appearance: none;
+  height: 6px; border-radius: 3px;
+  background: linear-gradient(to right, var(--cyan) var(--pct,50%), var(--border) var(--pct,50%));
+  outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--cyan); box-shadow: 0 0 8px rgba(0,229,255,.5); cursor: pointer;
+}
+.hour-ticks { display: flex; justify-content: space-between; font-size: 9px; color: var(--muted); font-family: var(--mono); margin-top: 4px; }
 
-  .radar-icon {
-    position: relative;
-    width: 44px;
-    height: 44px;
-    flex-shrink: 0;
-  }
+/* LAYOUT */
+.main { display: flex; flex-direction: column; }
+@media(min-width:700px){ .main { flex-direction: row; } }
 
-  .radar-icon svg {
-    width: 100%;
-    height: 100%;
-  }
+/* MAP PANEL */
+.map-panel { flex: 1; position: relative; min-height: 340px; background: #08111f; }
+#svg-map { width: 100%; height: 100%; display: block; }
 
-  .sweep {
-    transform-origin: 50% 50%;
-    animation: sweep 3s linear infinite;
-  }
+/* tooltip */
+.tooltip {
+  position: fixed; display: none;
+  background: #0e1829ee; border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 12px; color: var(--text); z-index: 100;
+  pointer-events: none; max-width: 220px;
+}
+.tooltip strong { font-family: var(--mono); color: var(--cyan); font-size: 13px; }
+.tooltip .score-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.tooltip .score-bar { flex: 1; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.tooltip .score-fill { height: 100%; border-radius: 2px; transition: width .3s; }
 
-  @keyframes sweep {
-    from { transform: rotate(0deg); }
-    to   { transform: rotate(360deg); }
-  }
+/* SIDEBAR */
+.sidebar {
+  width: 100%; background: var(--surface); border-top: 1px solid var(--border);
+  overflow-y: auto; max-height: 50vh;
+}
+@media(min-width:700px){ .sidebar { width: 280px; border-top: none; border-left: 1px solid var(--border); max-height: none; } }
 
-  .header-text h1 {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 22px;
-    color: var(--cyan);
-    letter-spacing: 2px;
-  }
+.sidebar-title { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; color: var(--muted); padding: 14px 14px 8px; text-transform: uppercase; }
 
-  .header-text p {
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-top: 2px;
-  }
+.zone-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 14px; border-bottom: 1px solid #111e30;
+  cursor: pointer; transition: background .15s;
+}
+.zone-item:hover { background: #111e30; }
+.zone-item.active { background: #0c1f38; }
+.zone-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.zone-name { font-size: 12px; flex: 1; }
+.zone-score { font-family: var(--mono); font-size: 13px; font-weight: bold; }
+.zone-reason { font-size: 10px; color: var(--muted); }
 
-  .live-badge {
-    margin-left: auto;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 11px;
-    color: var(--green);
-    font-family: 'Share Tech Mono', monospace;
-    letter-spacing: 1px;
-  }
+/* EVENTS TICKER */
+.events-panel {
+  background: #06101c;
+  border-top: 1px solid var(--border);
+  padding: 10px 18px;
+  overflow: hidden; height: 38px;
+}
+.ticker-wrap { display: flex; gap: 40px; animation: ticker 35s linear infinite; width: max-content; }
+@keyframes ticker { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+.tick-item { font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+.tick-item .ev-time { color: var(--amber); }
+.tick-item .ev-name { color: var(--text); }
+.tick-item .ev-loc  { color: var(--muted); }
 
-  .live-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--green);
-    animation: blink 1.4s ease-in-out infinite;
-  }
-
-  @keyframes blink {
-    0%,100% { opacity: 1; }
-    50%      { opacity: 0.2; }
-  }
-
-  /* ── GRID ── */
-  .grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-bottom: 14px;
-  }
-
-  @media (max-width: 560px) {
-    .grid { grid-template-columns: 1fr; }
-  }
-
-  /* ── CARDS ── */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 16px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .card::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: 10px;
-    pointer-events: none;
-  }
-
-  .card.accent-amber::before { box-shadow: inset 0 0 0 1px var(--amber-dim); }
-  .card.accent-cyan::before  { box-shadow: inset 0 0 0 1px var(--cyan-dim); }
-
-  .card-label {
-    font-size: 10px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin-bottom: 10px;
-    font-family: 'Share Tech Mono', monospace;
-  }
-
-  /* ── STATUS ── */
-  .status-val {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 36px;
-    font-weight: bold;
-    line-height: 1;
-  }
-
-  .status-hint {
-    margin-top: 8px;
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  .col-good { color: var(--green); }
-  .col-warn { color: var(--amber); }
-  .col-bad  { color: var(--red); }
-
-  /* ── CURRENT HOUR COUNT ── */
-  .count-val {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 48px;
-    color: var(--cyan);
-    line-height: 1;
-  }
-
-  .count-label {
-    font-size: 12px;
-    color: var(--muted);
-    margin-top: 4px;
-  }
-
-  /* ── HEATMAP ── */
-  .heatmap-card {
-    grid-column: 1 / -1;
-  }
-
-  .heatmap-wrap {
-    position: relative;
-    margin-top: 8px;
-  }
-
-  .bar {
-    display: flex;
-    height: 36px;
-    border-radius: 6px;
-    overflow: hidden;
-    gap: 2px;
-    background: transparent;
-  }
-
-  .cell {
-    flex: 1;
-    font-size: 9px;
-    font-family: 'Share Tech Mono', monospace;
-    text-align: center;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: rgba(255,255,255,0.6);
-    border-radius: 3px;
-    cursor: default;
-    transition: opacity .15s;
-    position: relative;
-  }
-
-  .cell:hover { opacity: 0.75; }
-
-  .cell.lvl0 { background: #111c2e; color: var(--muted); }
-  .cell.lvl1 { background: #1a4530; }
-  .cell.lvl2 { background: #7c5200; }
-  .cell.lvl3 { background: #c2410c; }
-
-  .cell.now-marker {
-    outline: 2px solid var(--cyan);
-    outline-offset: -2px;
-  }
-
-  .heatmap-legend {
-    display: flex;
-    gap: 16px;
-    margin-top: 10px;
-    flex-wrap: wrap;
-  }
-
-  .leg-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10px;
-    color: var(--muted);
-  }
-
-  .leg-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
-  }
-
-  /* ── NEXT WINDOWS ── */
-  .windows-card {
-    grid-column: 1 / -1;
-  }
-
-  .window-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .window-item:last-child { border-bottom: none; }
-
-  .window-time {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 15px;
-    color: var(--cyan);
-    min-width: 100px;
-  }
-
-  .window-bar {
-    flex: 1;
-    height: 6px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .window-fill {
-    height: 100%;
-    border-radius: 3px;
-  }
-
-  .fill-hot  { background: var(--red);   width: 100%; }
-  .fill-mid  { background: var(--amber); width: 66%; }
-
-  .window-tag {
-    font-size: 11px;
-    font-family: 'Share Tech Mono', monospace;
-    min-width: 80px;
-    text-align: right;
-  }
-
-  .tag-hot  { color: var(--red); }
-  .tag-mid  { color: var(--amber); }
-
-  .empty-msg {
-    color: var(--muted);
-    font-size: 13px;
-    padding: 10px 0;
-    font-family: 'Share Tech Mono', monospace;
-  }
-
-  /* ── FOOTER ── */
-  .footer {
-    margin-top: 20px;
-    font-size: 10px;
-    color: var(--muted);
-    font-family: 'Share Tech Mono', monospace;
-    letter-spacing: 1px;
-    text-align: center;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
+/* LEGEND */
+.legend {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  padding: 10px 18px;
+  background: var(--surface); border-top: 1px solid var(--border);
+  font-size: 10px; color: var(--muted);
+}
+.leg { display: flex; align-items: center; gap: 5px; }
+.leg-sq { width: 12px; height: 12px; border-radius: 2px; }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="header">
-  <div class="radar-icon">
-    <svg viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="22" cy="22" r="20" stroke="#1a2d4a" stroke-width="1.5"/>
-      <circle cx="22" cy="22" r="13" stroke="#1a2d4a" stroke-width="1"/>
-      <circle cx="22" cy="22" r="6"  stroke="#1a2d4a" stroke-width="1"/>
-      <line x1="22" y1="2"  x2="22" y2="42" stroke="#1a2d4a" stroke-width="0.8"/>
-      <line x1="2"  y1="22" x2="42" y2="22" stroke="#1a2d4a" stroke-width="0.8"/>
-      <g class="sweep">
-        <path d="M22 22 L22 2 A20 20 0 0 1 39.3 11.5 Z" fill="rgba(0,229,255,0.15)"/>
-        <line x1="22" y1="22" x2="22" y2="2" stroke="#00e5ff" stroke-width="1.5"/>
+  <div>
+    <h1>📍 SOFIA TAXI DEMAND</h1>
+    <p>Зони на търсене · Следобед / Вечер</p>
+  </div>
+  <div class="live-dot"></div>
+  <span id="airport-badge" style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#f59e0b;margin-left:8px">✈ ЗАРЕЖДА...</span>
+</div>
+
+<!-- TIME SLIDER -->
+<div class="time-bar">
+  <div class="time-label" id="time-display">🕔 16:00</div>
+  <div class="slider-wrap">
+    <input type="range" id="time-slider" min="14" max="24" value="16" step="1">
+  </div>
+  <div class="hour-ticks">
+    <span>14ч</span><span>16ч</span><span>18ч</span><span>20ч</span><span>22ч</span><span>24ч</span>
+  </div>
+</div>
+
+<!-- EVENTS TICKER -->
+<div class="events-panel">
+  <div class="ticker-wrap" id="ticker"></div>
+</div>
+
+<div class="main">
+  <!-- SVG MAP -->
+  <div class="map-panel">
+    <svg id="svg-map" viewBox="0 0 600 520" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background city outline -->
+      <rect width="600" height="520" fill="#08111f"/>
+      <!-- Grid lines (subtle) -->
+      <g stroke="#0d1e33" stroke-width="0.5" opacity="0.6">
+        <line x1="0" y1="100" x2="600" y2="100"/>
+        <line x1="0" y1="200" x2="600" y2="200"/>
+        <line x1="0" y1="300" x2="600" y2="300"/>
+        <line x1="0" y1="400" x2="600" y2="400"/>
+        <line x1="100" y1="0" x2="100" y2="520"/>
+        <line x1="200" y1="0" x2="200" y2="520"/>
+        <line x1="300" y1="0" x2="300" y2="520"/>
+        <line x1="400" y1="0" x2="400" y2="520"/>
+        <line x1="500" y1="0" x2="500" y2="520"/>
       </g>
-      <circle cx="22" cy="22" r="2.5" fill="#00e5ff"/>
+
+      <!-- ─── ZONES ─── Each zone is a polygon/circle with data attributes ─── -->
+      <!-- data-zone="id" -->
+
+      <!-- ЦЕНТЪР (Централна градска зона) -->
+      <polygon data-zone="center"
+        points="245,195 290,175 335,185 355,220 345,265 310,285 265,275 235,250 230,220"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- НДК / Витоша бул. -->
+      <polygon data-zone="ndk"
+        points="240,275 265,278 280,310 270,340 245,345 225,320 228,290"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Ариана / Арена 8888 -->
+      <polygon data-zone="arena"
+        points="345,155 395,145 420,170 415,210 385,225 355,215 340,190"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Сердика (МОЛ Сердика + метро) -->
+      <polygon data-zone="serdika"
+        points="215,155 250,148 270,170 260,200 230,205 210,185"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Paradise Center (Студентски) -->
+      <polygon data-zone="paradise"
+        points="295,330 340,320 365,345 360,385 325,395 290,370 285,345"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Mall of Sofia / Женски пазар -->
+      <polygon data-zone="mall_sofia"
+        points="265,140 300,132 320,150 315,175 285,180 260,165"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Централна гара -->
+      <polygon data-zone="central_station"
+        points="195,125 235,118 255,140 248,165 215,170 192,150"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Автогара Юг -->
+      <polygon data-zone="bus_south"
+        points="235,355 265,345 275,370 265,395 238,398 220,378"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Автогара Подуяне -->
+      <polygon data-zone="bus_pod"
+        points="370,115 405,108 420,128 415,150 385,155 365,138"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Летище София (СОФ) - на изток, извън центъра -->
+      <polygon data-zone="airport"
+        points="510,60 560,52 578,75 572,105 540,115 508,95"
+        class="zone-shape" style="cursor:pointer"/>
+      <!-- Runway indicator -->
+      <line x1="520" y1="68" x2="568" y2="62" stroke="#00e5ff" stroke-width="1.5" opacity="0.3" pointer-events="none"/>
+      <line x1="524" y1="78" x2="572" y2="72" stroke="#00e5ff" stroke-width="1.5" opacity="0.3" pointer-events="none"/>
+
+      <!-- Младост 1 / Business Park -->
+      <polygon data-zone="mladost"
+        points="420,285 470,270 495,300 490,340 455,355 420,335 408,308"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Лозенец / Водна кула -->
+      <polygon data-zone="lozenets"
+        points="310,295 345,285 365,310 355,345 322,350 300,328"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Витоша (Симеоново / Драгалевци) -->
+      <polygon data-zone="vitosha"
+        points="210,385 250,370 280,385 285,420 255,445 215,440 195,415"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Хиподрума / Красно село -->
+      <polygon data-zone="krasno"
+        points="165,255 210,240 235,255 230,295 200,310 165,295"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Изток / Докторски -->
+      <polygon data-zone="iztok"
+        points="355,215 390,210 415,235 408,270 375,278 348,258"
+        class="zone-shape" style="cursor:pointer"/>
+
+      <!-- Надписи / Labels на картата -->
+      <g id="map-labels" font-family="'Share Tech Mono', monospace" font-size="9" fill="#4a6080" text-anchor="middle" pointer-events="none">
+        <text x="285" y="235">ЦЕНТЪР</text>
+        <text x="255" y="313">НДК</text>
+        <text x="382" y="188">АРЕНА 8888</text>
+        <text x="237" y="180">СЕРДИКА</text>
+        <text x="325" y="360">PARADISE</text>
+        <text x="290" y="158">MALL SOFIA</text>
+        <text x="222" y="147">ЦЖП</text>
+        <text x="248" y="375">АГ ЮГ</text>
+        <text x="392" y="133">АГ ПОДУЯНЕ</text>
+        <text x="541" y="87">ЛЕТИЩЕ СОФ</text>
+        <text x="452" y="313">МЛАДОСТ</text>
+        <text x="333" y="320">ЛОЗЕНЕЦ</text>
+        <text x="243" y="413">ВИТОША</text>
+        <text x="196" y="276">КРАСНО</text>
+        <text x="380" y="245">ИЗТОК</text>
+      </g>
+
+      <!-- Icons for key locations -->
+      <g font-size="14" text-anchor="middle" pointer-events="none">
+        <text x="222" y="143">🚂</text>
+        <text x="541" y="80">✈️</text>
+        <text x="248" y="371">🚌</text>
+        <text x="392" y="129">🚌</text>
+        <text x="382" y="184">🎸</text>
+        <text x="237" y="176">🛍</text>
+        <text x="290" y="154">🛍</text>
+        <text x="325" y="356">🛍</text>
+        <text x="285" y="231">⭐</text>
+      </g>
+
+      <!-- Compass rose -->
+      <g transform="translate(555,30)" font-family="'Share Tech Mono',monospace" font-size="9" fill="#2a4060" text-anchor="middle">
+        <text x="0" y="-10" fill="#3a5070">N</text>
+        <line x1="0" y1="-8" x2="0" y2="8" stroke="#2a4060" stroke-width="1"/>
+        <line x1="-8" y1="0" x2="8" y2="0" stroke="#2a4060" stroke-width="1"/>
+      </g>
     </svg>
   </div>
-  <div class="header-text">
-    <h1>SOF TAXI RADAR</h1>
-    <p>Летище София · Пристигания</p>
-  </div>
-  <div class="live-badge">
-    <div class="live-dot"></div>
-    LIVE
+
+  <!-- SIDEBAR: Zone list -->
+  <div class="sidebar">
+    <div class="sidebar-title">▣ Зони по приоритет</div>
+    <div id="zone-list"></div>
   </div>
 </div>
 
-<!-- HEATMAP -->
-<div class="grid">
-  <div class="card heatmap-card">
-    <div class="card-label">▣ Интензивност по час (24h)</div>
-    <div class="heatmap-wrap">
-      <div class="bar" id="heat"></div>
-    </div>
-    <div class="heatmap-legend">
-      <div class="leg-item"><div class="leg-dot" style="background:#111c2e; border:1px solid #1a2d4a"></div> Тихо</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#1a4530"></div> Нормално</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#7c5200"></div> Добре</div>
-      <div class="leg-item"><div class="leg-dot" style="background:#c2410c"></div> Пик 🔥</div>
-      <div class="leg-item" style="margin-left:auto">
-        <div class="leg-dot" style="background:transparent; outline:2px solid #00e5ff; outline-offset:-1px"></div>
-        Текущ час
-      </div>
-    </div>
-  </div>
-
-  <!-- STATUS -->
-  <div class="card accent-amber">
-    <div class="card-label">◈ Сигнал сега</div>
-    <div class="status-val" id="status">—</div>
-    <div class="status-hint" id="hint"></div>
-  </div>
-
-  <!-- COUNT -->
-  <div class="card accent-cyan">
-    <div class="card-label">↓ Пристигания тази час</div>
-    <div class="count-val" id="count">—</div>
-    <div class="count-label" id="count-sub"></div>
-  </div>
-
-  <!-- NEXT WINDOWS -->
-  <div class="card windows-card">
-    <div class="card-label">◷ Следващи силни прозорци</div>
-    <div id="next"></div>
-  </div>
+<!-- LEGEND -->
+<div class="legend">
+  <div class="leg"><div class="leg-sq" style="background:#ef4444"></div> Пик — отивай СЕГА</div>
+  <div class="leg"><div class="leg-sq" style="background:#f97316"></div> Висок</div>
+  <div class="leg"><div class="leg-sq" style="background:#f59e0b"></div> Среден</div>
+  <div class="leg"><div class="leg-sq" style="background:#22c55e"></div> Нормален</div>
+  <div class="leg"><div class="leg-sq" style="background:#1a3050"></div> Тих</div>
+  <div style="margin-left:auto; font-family:'Share Tech Mono',monospace; font-size:10px; color:#4a6080">Данните са прогнозни · актуализирани за текущата дата</div>
 </div>
 
-<div class="footer" id="ts"></div>
+<div class="tooltip" id="tooltip"></div>
 
 <script>
-fetch('flight-cache.json')
-  .then(r => r.json())
-  .then(data => {
-    const flights = data.data || [];
-    const now     = new Date();
-    const curH    = now.getHours();
-    const hours   = Array(24).fill(0);
+// ─── ZONE DEFINITIONS ───
+const ZONES = {
+  center:          { name: "Център",              icon:"⭐", type:"mixed" },
+  ndk:             { name: "НДК / бул.Витоша",    icon:"🎭", type:"venue" },
+  arena:           { name: "Арена 8888",           icon:"🎸", type:"concert" },
+  serdika:         { name: "Мол Сердика",          icon:"🛍", type:"mall" },
+  paradise:        { name: "Paradise Center",      icon:"🛍", type:"mall" },
+  mall_sofia:      { name: "Mall of Sofia",        icon:"🛍", type:"mall" },
+  central_station: { name: "Централна гара (ЖП)",  icon:"🚂", type:"transit" },
+  bus_south:       { name: "Автогара Юг",          icon:"🚌", type:"transit" },
+  bus_pod:         { name: "Автогара Подуяне",     icon:"🚌", type:"transit" },
+  airport:         { name: "Летище София (СОФ)",   icon:"✈️", type:"airport" },
+  mladost:         { name: "Младост / Biz Park",   icon:"🏢", type:"office" },
+  lozenets:        { name: "Лозенец / Водна кула", icon:"🎨", type:"venue" },
+  vitosha:         { name: "Витоша (Симеоново)",   icon:"🏔", type:"leisure" },
+  krasno:          { name: "Красно село",          icon:"🏘", type:"residential" },
+  iztok:           { name: "Изток / Докторски",    icon:"🏡", type:"residential" },
+};
 
-    flights.forEach(f => {
-      if (!f.arrival?.scheduled) return;
-      const t       = new Date(f.arrival.estimated || f.arrival.scheduled);
-      const origin  = (f.departure?.airport || '').toLowerCase();
-      const nonEU   = origin.includes('tur') || origin.includes('israel') || origin.includes('uk');
-      const ready   = new Date(t.getTime() + (nonEU ? 20 : 10) * 60000);
-      hours[ready.getHours()]++;
-    });
+// ─── EVENTS with end-times triggering taxi demand ───
+// Format: { zone, name, endHour (decimal), demand multiplier, days (0=sun..6=sat, null=daily) }
+const EVENTS = [
+  // Concerts / Major events
+  { zone:"arena",   name:"SCORPIONS – Coming Home 60г.", endHour:22.5, boost:3.5, date:"2026-06-27" },
+  { zone:"ndk",     name:"Вагнеров фестивал – Опера",    endHour:22,   boost:2.5, repeat:"daily", endDate:"2026-06-14" },
+  { zone:"lozenets",name:"Water Tower Art Fest",          endHour:21,   boost:1.5, repeat:"daily", endDate:"2026-06-30" },
 
-    const score = hours.map(v => v >= 8 ? 3 : v >= 4 ? 2 : v >= 2 ? 1 : 0);
+  // Regular concerts / театър
+  { zone:"ndk",     name:"Театър 199 – вечерна програма", endHour:22, boost:2.0, repeat:"thu-sat" },
+  { zone:"center",  name:"Народен театър – спектакъл",    endHour:22, boost:1.8, repeat:"tue-sat" },
+  { zone:"ndk",     name:"Национален дворец на културата – концерт", endHour:22, boost:2.2, repeat:"fri-sat" },
 
-    // ── HEATMAP ──
-    const bar = document.getElementById('heat');
-    score.forEach((s, i) => {
-      const lvl = `lvl${s}`;
-      const now_ = i === curH ? ' now-marker' : '';
-      const d = document.createElement('div');
-      d.className = `cell ${lvl}${now_}`;
-      d.title = `${i}:00 — ${hours[i]} рейса`;
-      d.textContent = i;
-      bar.appendChild(d);
-    });
+  // Malls – checkout peaks (следобед)
+  { zone:"serdika",  name:"Мол Сердика – пиков изход", endHour:20.5, boost:2.0, repeat:"daily" },
+  { zone:"paradise", name:"Paradise Center – изход",   endHour:21.5, boost:2.2, repeat:"daily" },
+  { zone:"mall_sofia",name:"Mall of Sofia – изход",    endHour:21,   boost:1.8, repeat:"daily" },
 
-    // ── STATUS ──
-    const s = score[curH];
-    const statusMap = {
-      0: { txt: 'Тихо',       cls: 'col-bad',  hint: 'Не си губи времето тук' },
-      1: { txt: 'Нормално',   cls: 'col-warn', hint: 'Може да пробваш' },
-      2: { txt: 'Активно',    cls: 'col-good', hint: '✔ Добър момент' },
-      3: { txt: 'ПИК',        cls: 'col-good', hint: '🔥 ВЛЕЗ СЕГА' },
-    };
+  // Hotels checkout (12:00 window – not applicable here, but late checkout/ restaurant guests)
+  { zone:"center",  name:"Хотели Център – ресторанти/бар", endHour:23, boost:1.6, repeat:"daily" },
 
-    let info = statusMap[s];
+  // Transit
+  { zone:"central_station", name:"Влак София–Варна пристигане", endHour:18.5, boost:2.2, repeat:"daily" },
+  { zone:"central_station", name:"Влак София–Пловдив пристигане", endHour:20,  boost:1.8, repeat:"daily" },
+  { zone:"bus_south",       name:"Автобуси от Пловдив/Пазарджик", endHour:19.5, boost:2.0, repeat:"daily" },
+  { zone:"bus_south",       name:"Нощни автобуси – изход",        endHour:22,   boost:1.5, repeat:"daily" },
+  { zone:"bus_pod",         name:"Автогара Подуяне – разписание", endHour:18,   boost:1.6, repeat:"daily" },
 
-    // lookahead: ако следващия час е по-добър
-    const nextScore = score[curH + 1] ?? 0;
-    if (nextScore > s && nextScore >= 2) {
-      info = { txt: 'Изчакай', cls: 'col-warn', hint: `Пик след ~1 час (${curH + 1}:00)` };
+  // Business / Office
+  { zone:"mladost", name:"Business Park Sofia – край работа", endHour:19, boost:2.5, repeat:"mon-fri" },
+  { zone:"iztok",   name:"Офис зона Изток – изход",           endHour:18.5, boost:1.6, repeat:"mon-fri" },
+  { zone:"center",  name:"Офиси Център – изход",              endHour:18,  boost:1.8, repeat:"mon-fri" },
+
+  // Airport events are injected at runtime from flight-cache.json via loadFlights()
+];
+
+// ─── BASE demand per zone (without events) ───
+const BASE = {
+  center: 1.2, ndk: 0.8, arena: 0.3, serdika: 0.9, paradise: 0.8,
+  mall_sofia: 0.7, central_station: 1.0, bus_south: 0.8, bus_pod: 0.6,
+  mladost: 0.9, lozenets: 0.6, vitosha: 0.5, krasno: 0.6, iztok: 0.7,
+  airport: 1.4,
+};
+
+// ─── Score color ───
+function demandColor(score) {
+  if (score >= 3.0) return { fill:"#ef4444", stroke:"#ff6666", label:"ПИК 🔥", cls:"col-red" };
+  if (score >= 2.2) return { fill:"#f97316", stroke:"#ffaa55", label:"Висок ▲", cls:"col-orange" };
+  if (score >= 1.5) return { fill:"#f59e0b", stroke:"#ffd060", label:"Среден", cls:"col-amber" };
+  if (score >= 0.8) return { fill:"#22c55e", stroke:"#55ff88", label:"Нормален", cls:"col-green" };
+  return { fill:"#1a3050", stroke:"#2a4870", label:"Тих", cls:"col-muted" };
+}
+
+// ─── Today's check ───
+const TODAY = new Date();
+const todayStr = TODAY.toISOString().slice(0,10);
+const todayDay = TODAY.getDay(); // 0=sun,6=sat
+
+function dayMatches(ev) {
+  if (ev.date && ev.date !== todayStr) return false;
+  if (ev.endDate && todayStr > ev.endDate) return false;
+  if (ev.repeat === "daily") return true;
+  if (ev.repeat === "mon-fri") return todayDay >= 1 && todayDay <= 5;
+  if (ev.repeat === "thu-sat") return [4,5,6].includes(todayDay);
+  if (ev.repeat === "fri-sat") return [5,6].includes(todayDay);
+  if (ev.repeat === "tue-sat") return todayDay >= 2 && todayDay <= 6;
+  return true;
+}
+
+// ─── Compute scores for a given hour ───
+// Peak demand window: ±1h from event end
+function computeScores(hour) {
+  const scores = {};
+  const activeEvents = {};
+
+  for (const zid in ZONES) {
+    scores[zid] = BASE[zid] || 0.5;
+    activeEvents[zid] = [];
+  }
+
+  for (const ev of EVENTS) {
+    if (!dayMatches(ev)) continue;
+    const diff = hour - ev.endHour; // negative = before end
+    // ramp: starts building 45min before, peaks at end, fades 1.5h after
+    let factor = 0;
+    if (diff >= -0.75 && diff <= 0) {
+      factor = (diff + 0.75) / 0.75; // ramp up
+    } else if (diff > 0 && diff <= 1.5) {
+      factor = 1 - diff / 1.5; // ramp down
     }
-
-    document.getElementById('status').innerHTML =
-      `<span class="${info.cls}">${info.txt}</span>`;
-    document.getElementById('hint').textContent = info.hint;
-
-    // ── COUNT ──
-    document.getElementById('count').textContent = hours[curH];
-    document.getElementById('count-sub').textContent =
-      `рейса готови ${curH}:00 – ${curH + 1}:00`;
-
-    // ── NEXT WINDOWS ──
-    const nextDiv = document.getElementById('next');
-    const peaks   = score.reduce((acc, v, i) => {
-      if (v >= 2) acc.push({ h: i, v });
-      return acc;
-    }, []);
-
-    if (peaks.length === 0) {
-      nextDiv.innerHTML = '<div class="empty-msg">// няма силни прозорци днес</div>';
-    } else {
-      nextDiv.innerHTML = peaks.map(({ h, v }) => `
-        <div class="window-item">
-          <div class="window-time">${String(h).padStart(2,'0')}:00 – ${String(h+1).padStart(2,'0')}:00</div>
-          <div class="window-bar">
-            <div class="window-fill ${v >= 3 ? 'fill-hot' : 'fill-mid'}"></div>
-          </div>
-          <div class="window-tag ${v >= 3 ? 'tag-hot' : 'tag-mid'}">
-            ${v >= 3 ? '🔥 ПИК' : '▲ ДОБРЕ'}
-          </div>
-        </div>
-      `).join('');
+    if (factor > 0.05) {
+      scores[ev.zone] += ev.boost * factor;
+      activeEvents[ev.zone].push({ name: ev.name, factor: Math.round(factor*100) });
     }
+  }
 
-    // ── FOOTER ──
-    document.getElementById('ts').textContent =
-      `АКТУАЛИЗИРАНО: ${now.toLocaleTimeString('bg-BG')} · ДАННИ: flight-cache.json`;
-  })
-  .catch(() => {
-    document.getElementById('status').innerHTML =
-      '<span class="col-bad">ГРЕШКА</span>';
-    document.getElementById('hint').textContent = 'Не може да зареди flight-cache.json';
-    document.getElementById('ts').textContent = 'OFFLINE';
+  return { scores, activeEvents };
+}
+
+// ─── Render ───
+const shapes = document.querySelectorAll('.zone-shape');
+const slider = document.getElementById('time-slider');
+const timeDisplay = document.getElementById('time-display');
+const zoneList = document.getElementById('zone-list');
+const tooltip = document.getElementById('tooltip');
+
+let currentHour = parseInt(slider.value);
+let selectedZone = null;
+
+// Update slider gradient
+function updateSliderGradient() {
+  const pct = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+  slider.style.setProperty('--pct', pct + '%');
+}
+
+function render(hour) {
+  const { scores, activeEvents } = computeScores(hour);
+
+  // Update map shapes
+  shapes.forEach(el => {
+    const zid = el.dataset.zone;
+    const s = scores[zid] || 0;
+    const c = demandColor(s);
+    el.style.fill = c.fill + 'cc'; // slight alpha
+    el.style.stroke = c.stroke;
+    el.style.strokeWidth = selectedZone === zid ? '2.5' : '1';
+    el.style.opacity = selectedZone && selectedZone !== zid ? '0.6' : '1';
   });
+
+  // Update label colors
+  document.querySelectorAll('#map-labels text').forEach(t => {
+    t.setAttribute('fill', '#6080a0');
+  });
+
+  // Sort zones by score descending
+  const sorted = Object.entries(scores).sort((a,b) => b[1]-a[1]);
+
+  zoneList.innerHTML = sorted.map(([zid, score]) => {
+    const z = ZONES[zid];
+    const c = demandColor(score);
+    const evs = activeEvents[zid];
+    const evText = evs.length ? evs[0].name : '';
+    return `
+      <div class="zone-item ${selectedZone===zid?'active':''}" onclick="selectZone('${zid}')">
+        <div class="zone-dot" style="background:${c.fill}"></div>
+        <div>
+          <div class="zone-name">${z.icon} ${z.name}</div>
+          ${evText ? `<div class="zone-reason">${evText}</div>` : ''}
+        </div>
+        <div class="zone-score" style="color:${c.fill}">${score.toFixed(1)}</div>
+      </div>`;
+  }).join('');
+}
+
+function selectZone(zid) {
+  selectedZone = selectedZone === zid ? null : zid;
+  render(currentHour);
+}
+window.selectZone = selectZone;
+
+// Tooltip
+shapes.forEach(el => {
+  el.addEventListener('mouseenter', (e) => showTooltip(e, el.dataset.zone));
+  el.addEventListener('mousemove',  (e) => moveTooltip(e));
+  el.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+  el.addEventListener('click', () => selectZone(el.dataset.zone));
+});
+
+function showTooltip(e, zid) {
+  const { scores, activeEvents } = computeScores(currentHour);
+  const z = ZONES[zid];
+  const s = scores[zid];
+  const c = demandColor(s);
+  const evs = activeEvents[zid];
+  const pct = Math.min(100, (s / 4) * 100);
+
+  tooltip.innerHTML = `
+    <strong>${z.icon} ${z.name}</strong>
+    <div class="score-row">
+      <span style="font-size:11px;color:${c.fill}">${c.label}</span>
+      <div class="score-bar"><div class="score-fill" style="width:${pct}%;background:${c.fill}"></div></div>
+      <span style="font-family:'Share Tech Mono',monospace;font-size:12px;color:${c.fill}">${s.toFixed(1)}</span>
+    </div>
+    ${evs.length ? '<div style="margin-top:6px;font-size:10px;color:#6080a0">Активни events:</div>' + evs.slice(0,3).map(ev=>`<div style="font-size:10px;color:#c8daf0">• ${ev.name}</div>`).join('') : ''}
+  `;
+  tooltip.style.display = 'block';
+  moveTooltip(e);
+}
+
+function moveTooltip(e) {
+  tooltip.style.left = (e.clientX + 14) + 'px';
+  tooltip.style.top  = (e.clientY - 10) + 'px';
+}
+
+// Slider
+slider.addEventListener('input', () => {
+  currentHour = parseFloat(slider.value);
+  const h = Math.floor(currentHour);
+  const m = currentHour % 1 === 0 ? '00' : '30';
+  timeDisplay.textContent = `🕔 ${String(h).padStart(2,'0')}:${m}`;
+  updateSliderGradient();
+  render(currentHour);
+});
+
+// ─── TICKER ───
+const tickerEl = document.getElementById('ticker');
+function buildTicker() {
+  const items = EVENTS
+    .filter(dayMatches)
+    .sort((a,b) => a.endHour - b.endHour)
+    .map(ev => {
+      const h = Math.floor(ev.endHour);
+      const m = ev.endHour % 1 === 0 ? '00' : '30';
+      return `<span class="tick-item">
+        <span class="ev-time">${String(h).padStart(2,'0')}:${m}</span>
+        <span class="ev-name"> ${ev.name} </span>
+        <span class="ev-loc">@ ${ZONES[ev.zone]?.name || ev.zone}</span>
+        <span style="color:#1a3050"> ·····  </span>
+      </span>`;
+    });
+  // duplicate for seamless loop
+  const html = items.join('') + items.join('');
+  tickerEl.innerHTML = html;
+  tickerEl.style.animation = 'none';
+  tickerEl.offsetHeight; // reflow
+  tickerEl.style.animation = '';
+}
+
+// ─── AIRPORT: per-hour passenger count from flight-cache.json ───
+// flightHours[h] = number of pax-ready arrivals in that hour
+let flightHours = Array(24).fill(0);
+let airportStatus = 'offline'; // 'live' | 'fallback' | 'offline'
+
+function injectAirportEvents() {
+  // Clear previous airport events injected from JSON
+  const keep = EVENTS.filter(e => !e._fromFlight);
+
+  // Build events from flightHours: treat each hour-bucket as one event
+  // endHour = h + delay (10–20 min → 0.25h) so passengers hit the curb
+  for (let h = 0; h < 24; h++) {
+    const count = flightHours[h];
+    if (count === 0) continue;
+    // boost scales with count: 1 flight ≈ 0.4, 4 ≈ 1.6, 8+ ≈ 3.2 (capped 3.5)
+    const boost = Math.min(3.5, count * 0.4);
+    keep.push({
+      zone: 'airport',
+      name: `✈ ${count} рейс${count===1?'':'а'} пристига ~${String(h).padStart(2,'0')}:00`,
+      endHour: h + 0.25, // +15min for deplaning/customs
+      boost,
+      repeat: 'daily',
+      _fromFlight: true,
+    });
+  }
+
+  // Replace EVENTS in place
+  EVENTS.length = 0;
+  keep.forEach(e => EVENTS.push(e));
+}
+
+function updateAirportBadge() {
+  const badge = document.getElementById('airport-badge');
+  if (!badge) return;
+  if (airportStatus === 'live') {
+    badge.textContent = '✈ LIVE';
+    badge.style.color = '#22c55e';
+  } else if (airportStatus === 'fallback') {
+    badge.textContent = '✈ ПРОГНОЗНО';
+    badge.style.color = '#f59e0b';
+  } else {
+    badge.textContent = '✈ ОФЛАЙН';
+    badge.style.color = '#ef4444';
+  }
+}
+
+function applyFallbackAirport() {
+  // Статистически вълни за летище София когато JSON липсва
+  airportStatus = 'fallback';
+  const fallback = [
+    { h: 7,  count: 3 }, { h: 9,  count: 5 }, { h: 11, count: 4 },
+    { h: 13, count: 3 }, { h: 15, count: 4 }, { h: 16, count: 6 },
+    { h: 18, count: 7 }, { h: 19, count: 8 }, { h: 20, count: 6 },
+    { h: 21, count: 5 }, { h: 22, count: 4 }, { h: 23, count: 3 },
+  ];
+  fallback.forEach(({ h, count }) => { flightHours[h] = count; });
+  injectAirportEvents();
+}
+
+function loadFlights() {
+  fetch('flight-cache.json')
+    .then(r => { if (!r.ok) throw new Error('no json'); return r.json(); })
+    .then(data => {
+      const flights = data.data || [];
+      if (flights.length === 0) throw new Error('empty');
+
+      flightHours = Array(24).fill(0);
+      flights.forEach(f => {
+        if (!f.arrival?.scheduled) return;
+        const t       = new Date(f.arrival.estimated || f.arrival.scheduled);
+        const origin  = (f.departure?.airport || '').toLowerCase();
+        const nonEU   = origin.includes('tur') || origin.includes('israel') || origin.includes('uk');
+        const delay   = nonEU ? 20 : 10;
+        const ready   = new Date(t.getTime() + delay * 60000);
+        flightHours[ready.getHours()]++;
+      });
+
+      airportStatus = 'live';
+      injectAirportEvents();
+      updateAirportBadge();
+      buildTicker();
+      render(currentHour);
+    })
+    .catch(() => {
+      applyFallbackAirport();
+      updateAirportBadge();
+      buildTicker();
+      render(currentHour);
+    });
+}
+
+// ─── INIT ───
+updateSliderGradient();
+
+// Set current time automatically
+const nowH = new Date().getHours();
+const clampedH = Math.min(24, Math.max(14, nowH));
+slider.value = clampedH;
+currentHour = clampedH;
+timeDisplay.textContent = `🕔 ${String(clampedH).padStart(2,'0')}:00`;
+updateSliderGradient();
+
+// First render with fallback, then try to load real flights
+applyFallbackAirport();
+buildTicker();
+render(currentHour);
+loadFlights(); // async — will re-render if JSON available
 </script>
 </body>
 </html>
