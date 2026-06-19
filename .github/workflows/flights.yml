@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # ✅ ТОВА липсваше
+  contents: write
 
 jobs:
   fetch:
