@@ -1382,11 +1382,12 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && isFullscreen) fsBtn.click();
 });
 
-// ═══════════════════════════════════════════════
-// SLIDER
-// ═══════════════════════════════════════════════
+// Slider — ръчно местене
 const slider=document.getElementById('time-slider');
 slider.addEventListener('input',()=>{
+  autoTime = false;
+  clearTimeout(slider._autoResume);
+  slider._autoResume = setTimeout(()=>{ autoTime = true; syncToDeviceTime(); }, 10*60000);
   currentHour=parseFloat(slider.value);
   document.getElementById('time-display').textContent=fmtHour(currentHour);
   render(currentHour);
@@ -1400,6 +1401,38 @@ const nowH=new Date().getHours()+new Date().getMinutes()/60;
 const clamped=Math.min(24,Math.max(6,Math.round(nowH*2)/2));
 slider.value=clamped; currentHour=clamped;
 document.getElementById('time-display').textContent=fmtHour(clamped);
+
+// ── Автоматично следване на часа от устройството ──
+let autoTime = true; // false когато потребителят мести slider-а ръчно
+
+function syncToDeviceTime(){
+  if(!autoTime) return;
+  const h = new Date().getHours() + new Date().getMinutes()/60;
+  const snapped = Math.round(h * 2) / 2; // snap to 0.5h
+  if(Math.abs(snapped - currentHour) >= 0.25){
+    currentHour = snapped;
+    slider.value = snapped;
+    document.getElementById('time-display').textContent = fmtHour(snapped);
+    render(snapped);
+  }
+}
+
+// Обновява се всяка минута
+setInterval(syncToDeviceTime, 60000);
+
+// При ръчно местене на slider-а — спира auto за 10 минути
+slider.addEventListener('input', ()=>{
+  autoTime = false;
+  clearTimeout(slider._autoResume);
+  slider._autoResume = setTimeout(()=>{ autoTime = true; }, 10 * 60000);
+});
+
+// Малък индикатор в часа — показва дали е auto или ръчен
+function updateAutoIndicator(){
+  const el = document.getElementById('time-display');
+  if(el) el.style.opacity = autoTime ? '1' : '0.7';
+}
+setInterval(updateAutoIndicator, 5000);
 
 applyFallbackAirport();
 buildCurve();
