@@ -103,16 +103,72 @@ body.map-fullscreen #fs-btn  { bottom:70px; }
 
 /* Pulsing user location dot */
 @keyframes pulse-ring {
-  0%   { transform:scale(1);   opacity:.8; }
-  70%  { transform:scale(2.5); opacity:0;  }
-  100% { transform:scale(2.5); opacity:0;  }
+  0%   { transform:scale(1);   opacity:.7; }
+  70%  { transform:scale(3.0); opacity:0;  }
+  100% { transform:scale(3.0); opacity:0;  }
 }
 .user-dot-pulse {
   width:14px; height:14px; border-radius:50%;
   background:#00e5ff;
-  box-shadow:0 0 0 0 rgba(0,229,255,.6);
-  animation:pulse-ring 1.8s ease-out infinite;
+  animation:pulse-ring 3s ease-out infinite;
 }
+
+/* Traffic jam zones — pulsing purple */
+@keyframes jam-pulse {
+  0%,100% { opacity:0.7; }
+  50%      { opacity:1.0; }
+}
+.leaflet-interactive[data-jam="1"] {
+  animation: jam-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── DIRECTION ARROW overlay ── */
+#direction-hint {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0;
+  background:#070d1af8;
+  border-top:2px solid var(--amber);
+  padding:10px 14px;
+  z-index:1800;
+  font-family:'Share Tech Mono',monospace;
+}
+#direction-hint .dh-row { display:flex; align-items:center; gap:12px; }
+#direction-hint .dh-arrow { font-size:36px; transition:transform .5s; flex-shrink:0; }
+#direction-hint .dh-info  { flex:1; }
+#direction-hint .dh-name  { font-size:13px; color:var(--amber); }
+#direction-hint .dh-addr  { font-size:10px; color:var(--muted); margin-top:2px; }
+#direction-hint .dh-dist  { font-size:11px; color:var(--cyan); margin-top:3px; }
+#direction-hint .dh-score { font-size:22px; font-weight:bold; }
+#direction-hint .dh-close { cursor:pointer; color:var(--muted); font-size:16px; padding:4px; }
+
+/* ── SIDEBAR zone list ── */
+#zone-sidebar {
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  max-height:32vh;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.sidebar-title {
+  font-family:'Share Tech Mono',monospace;
+  font-size:9px; letter-spacing:2px; color:var(--muted);
+  padding:8px 12px 4px; text-transform:uppercase;
+  position:sticky; top:0; background:var(--surface); z-index:1;
+}
+.zone-item {
+  display:flex; align-items:center; gap:8px;
+  padding:7px 12px; border-bottom:1px solid #0e1d30;
+  cursor:pointer; transition:background .12s;
+}
+.zone-item:hover  { background:#111e30; }
+.zone-item.active { background:#0c1f38; border-left:2px solid var(--cyan); }
+.zone-dot   { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
+.zone-name  { font-size:11px; flex:1; line-height:1.3; }
+.zone-sub   { font-size:9px; color:var(--muted); }
+.zone-score { font-family:'Share Tech Mono',monospace; font-size:13px; font-weight:bold; }
+
+/* fullscreen hides sidebar */
+body.map-fullscreen #zone-sidebar { display:none; }
 
 /* Legend */
 #legend{
@@ -168,7 +224,25 @@ body.map-fullscreen #fs-btn  { bottom:70px; }
 
 <div id="map"></div>
 
-<!-- GPS button -->
+<!-- Zone sidebar list -->
+<div id="zone-sidebar">
+  <div class="sidebar-title">▣ Зони по приоритет</div>
+  <div id="zone-list"></div>
+</div>
+
+<!-- Direction hint (auto arrow to nearest worthy zone) -->
+<div id="direction-hint">
+  <div class="dh-row">
+    <div class="dh-arrow" id="dh-arrow">➡️</div>
+    <div class="dh-info">
+      <div class="dh-name"  id="dh-name">—</div>
+      <div class="dh-addr"  id="dh-addr">—</div>
+      <div class="dh-dist"  id="dh-dist">—</div>
+    </div>
+    <div class="dh-score" id="dh-score">—</div>
+    <span class="dh-close" onclick="closeDirHint()">✕</span>
+  </div>
+</div>
 <button id="gps-btn" title="GPS локация">📍</button>
 <button id="fs-btn"  title="Fullscreen карта">⛶</button>
 
@@ -178,6 +252,7 @@ body.map-fullscreen #fs-btn  { bottom:70px; }
   <div class="leg"><div class="leg-sq" style="background:#f97316"></div>Висок</div>
   <div class="leg"><div class="leg-sq" style="background:#f59e0b"></div>Среден</div>
   <div class="leg"><div class="leg-sq" style="background:#22c55e"></div>Нормален</div>
+  <div class="leg"><div class="leg-sq" style="background:#a855f7"></div>🚦 Обр.посока</div>
   <div class="leg"><div class="leg-sq" style="background:#1a3050;border:1px solid #2a4870"></div>Тих</div>
 </div>
 
@@ -300,6 +375,38 @@ const ZONES = [
   { id:"oval",          name:"Oval Business Center (Лозенец)",        icon:"🏢", lat:42.6640, lng:23.3340, radius:180, type:"office",           wazeName:"Oval Business Center Sofia" },
   { id:"nvu",           name:"НВУ / Военна академия",                 icon:"🎓", lat:42.6895, lng:23.3625, radius:180, type:"university",       wazeName:"Военна академия Г Раковски Sofia Bulgaria" },
   { id:"grand_arena",   name:"Grand Arena (кино / entertainment)",    icon:"🎬", lat:42.6246, lng:23.3519, radius:200, type:"leisure",          wazeName:"Grand Arena Cinema Sofia Bulgaria" },
+
+  // ── ТЕАТРИ ──
+  { id:"nat_theatre",   name:"Народен театър Иван Вазов",             icon:"🎭", lat:42.6951, lng:23.3297, radius:180, type:"theatre",          wazeName:"Народен театър Иван Вазов София" },
+  { id:"theatre_199",   name:"Театър 199 (бул.Евлоги Георгиев 199)",  icon:"🎭", lat:42.6896, lng:23.3596, radius:150, type:"theatre",          wazeName:"Театър 199 София" },
+  { id:"youth_theatre", name:"Младежки театър (бул.Дондуков 8)",       icon:"🎭", lat:42.6985, lng:23.3254, radius:150, type:"theatre",          wazeName:"Младежки театър Николай Бинев София" },
+  { id:"satira",        name:"Театър Сатирикон (ул.Стефан Караджа 2)",icon:"🎭", lat:42.6945, lng:23.3285, radius:140, type:"theatre",          wazeName:"Театър Сатирикон София" },
+  { id:"opera",         name:"Национална опера и балет",               icon:"🎶", lat:42.6946, lng:23.3229, radius:180, type:"theatre",          wazeName:"Национална опера и балет София" },
+  { id:"theatre_sofia", name:"Театър София (бул.Янко Сакъзов 23А)",   icon:"🎭", lat:42.6889, lng:23.3498, radius:140, type:"theatre",          wazeName:"Театър София Янко Сакъзов" },
+  { id:"sfumato",       name:"Театър Сфумато",                        icon:"🎭", lat:42.6882, lng:23.3191, radius:120, type:"theatre",          wazeName:"Театър Сфумато София" },
+  { id:"cmart",         name:"City Mark Art Center",                   icon:"🎭", lat:42.6893, lng:23.3360, radius:130, type:"theatre",          wazeName:"City Mark Art Center Sofia" },
+
+  // ── КИНА ──
+  { id:"cinema_city_ml",name:"Cinema City Mall of Sofia",              icon:"🎬", lat:42.6981, lng:23.3086, radius:160, type:"cinema",           wazeName:"Cinema City Mall of Sofia" },
+  { id:"cinema_city_ser",name:"Cinema City Сердика",                  icon:"🎬", lat:42.6920, lng:23.3540, radius:160, type:"cinema",           wazeName:"Cinema City Serdika Center Sofia" },
+  { id:"cinema_arena",  name:"Кино Арена Grand Cinema (Ring Mall)",    icon:"🎬", lat:42.6246, lng:23.3519, radius:160, type:"cinema",           wazeName:"Кино Арена Grand Cinema Ring Mall Sofia" },
+  { id:"cineland",      name:"Cineland (Paradise Center)",             icon:"🎬", lat:42.6578, lng:23.3144, radius:150, type:"cinema",           wazeName:"Cineland Paradise Center Sofia" },
+  { id:"dom_kinoto",    name:"Дом на киното (ул.Екзарх Йосиф 37)",    icon:"🎬", lat:42.6978, lng:23.3331, radius:130, type:"cinema",           wazeName:"Дом на киното Екзарх Йосиф 37 София" },
+  { id:"odeon",         name:"Кино Одеон (ул.Екзарх Йосиф 1)",        icon:"🎬", lat:42.6957, lng:23.3352, radius:120, type:"cinema",           wazeName:"Кино Одеон Екзарх Йосиф София" },
+  { id:"vlaykova",      name:"Кино Влайкова (ул.Г.Делчев 24)",        icon:"🎬", lat:42.6912, lng:23.3291, radius:120, type:"cinema",           wazeName:"Кино Влайкова Гоце Делчев Sofia" },
+
+  // ── РЕСТОРАНТИ / НОЩЕН ЖИВОТ ──
+  { id:"vitosha_bar",   name:"Бар/ресторант зона бул.Витоша",         icon:"🍷", lat:42.6890, lng:23.3220, radius:250, type:"nightlife",        wazeName:"булевард Витоша ресторанти София" },
+  { id:"lozenets_rest", name:"Ресторанти Лозенец (Водна кула)",        icon:"🍽", lat:42.6713, lng:23.3382, radius:220, type:"nightlife",        wazeName:"ресторанти Лозенец Водна кула София" },
+  { id:"center_bars",   name:"Барове / клубове Център (ул.Раковски)", icon:"🍺", lat:42.6960, lng:23.3310, radius:200, type:"nightlife",        wazeName:"Раковски барове клубове Sofia" },
+  { id:"studentski_bar",name:"Студентски град – барове/нощен живот",  icon:"🍺", lat:42.6480, lng:23.3580, radius:220, type:"nightlife",        wazeName:"Студентски град барове Sofia" },
+  { id:"iztok_rest",    name:"Ресторанти Изток (Докторски паметник)", icon:"🍽", lat:42.6762, lng:23.3620, radius:180, type:"nightlife",        wazeName:"ресторанти Докторски паметник Изток Sofia" },
+
+  // ── ЗАДРЪСТВАНИЯ (трафик зони — само индикатор, не demand) ──
+  { id:"jam_orl",       name:"⚠ Задръстване Орлов мост",              icon:"🚦", lat:42.6838, lng:23.3345, radius:150, type:"traffic",          wazeName:"Орлов мост София" },
+  { id:"jam_tsar",      name:"⚠ Задръстване Цариградско (Армейски)",  icon:"🚦", lat:42.6662, lng:23.3795, radius:200, type:"traffic",          wazeName:"Цариградско шосе Армейски кръстовище Sofia" },
+  { id:"jam_ndk",       name:"⚠ Задръстване пл.България / НДК",       icon:"🚦", lat:42.6855, lng:23.3188, radius:160, type:"traffic",          wazeName:"площад България НДК Sofia" },
+  { id:"jam_serdika",   name:"⚠ Задръстване Сердика / бул.Сливница", icon:"🚦", lat:42.7012, lng:23.3228, radius:160, type:"traffic",          wazeName:"Сердика бул Сливница Sofia" },
 ];
 
 // ═══════════════════════════════════════════════
@@ -322,6 +429,17 @@ const BASE = {
   banishora:0.4, iliantsi:0.3, druzhba:0.4, musagenitsa:0.4,
   zoo:0.4, sopharma_bc:0.4, telus:0.5, millennium:0.4, oval:0.4,
   grand_arena:0.3,
+  // Театри
+  nat_theatre:0.3, theatre_199:0.3, youth_theatre:0.3, satira:0.2,
+  opera:0.3, theatre_sofia:0.2, sfumato:0.2, cmart:0.2,
+  // Кина
+  cinema_city_ml:0.3, cinema_city_ser:0.3, cinema_arena:0.3,
+  cineland:0.3, dom_kinoto:0.3, odeon:0.2, vlaykova:0.2,
+  // Нощен живот
+  vitosha_bar:0.6, lozenets_rest:0.5, center_bars:0.5,
+  studentski_bar:0.4, iztok_rest:0.4,
+  // Трафик (базов 0 — само при пик часове)
+  jam_orl:0, jam_tsar:0, jam_ndk:0, jam_serdika:0,
 };
 
 // ═══════════════════════════════════════════════
@@ -408,12 +526,67 @@ const EVENTS = [
   { zone:"manast",   name:"Ман.ливади – прибиране", endHour:22.5, boost:1.6, repeat:"fri-sat" },
   { zone:"simenovo", name:"Симеоново – прибиране",  endHour:23,   boost:1.8, repeat:"fri-sat" },
   { zone:"boyana",   name:"Бояна – прибиране",      endHour:22.5, boost:1.5, repeat:"fri-sat" },
+
+  // ══ ТЕАТРИ — край на спектакъл (типично 21:30–22:30) ══
+  // Делнични: 19:00 начало → 21:30 край; уикенд: 19:30 → 22:00
+  { zone:"nat_theatre",   name:"Народен театър – край на спектакъл",   endHour:21.5, boost:2.5, repeat:"tue-sat" },
+  { zone:"nat_theatre",   name:"Народен театър – матине",              endHour:13,   boost:1.5, repeat:"sat" },
+  { zone:"theatre_199",   name:"Театър 199 – край на спектакъл",       endHour:22,   boost:2.2, repeat:"thu-sat" },
+  { zone:"youth_theatre", name:"Младежки театър – край",               endHour:21.5, boost:2.0, repeat:"tue-sat" },
+  { zone:"satira",        name:"Театър Сатирикон – край",              endHour:22,   boost:1.8, repeat:"thu-sat" },
+  { zone:"opera",         name:"Опера / Балет – край",                 endHour:22,   boost:2.5, repeat:"tue-sun" },
+  { zone:"opera",         name:"Опера – матине",                       endHour:13,   boost:1.8, repeat:"sat" },
+  { zone:"theatre_sofia", name:"Театър София – край",                  endHour:21.5, boost:1.8, repeat:"wed-sat" },
+  { zone:"sfumato",       name:"Сфумато – край на спектакъл",          endHour:22,   boost:1.6, repeat:"thu-sat" },
+  { zone:"cmart",         name:"City Mark Art Center – край",          endHour:21.5, boost:1.8, repeat:"thu-sat" },
+
+  // ══ КИНА — края на последна вечерна прожекция ══
+  // Типично: 20:00 начало + ~2ч филм = 22:00–22:30 край
+  { zone:"cinema_city_ml",  name:"Cinema City Mall of Sofia – последна прожекция", endHour:22.5, boost:2.0, repeat:"daily" },
+  { zone:"cinema_city_ser", name:"Cinema City Сердика – последна прожекция",       endHour:22.5, boost:2.0, repeat:"daily" },
+  { zone:"cinema_arena",    name:"Кино Арена Ring Mall – последна прожекция",      endHour:22.5, boost:1.8, repeat:"daily" },
+  { zone:"cineland",        name:"Cineland Paradise – последна прожекция",         endHour:22.5, boost:1.8, repeat:"daily" },
+  { zone:"dom_kinoto",      name:"Дом на киното – последна прожекция",             endHour:22,   boost:1.5, repeat:"daily" },
+  { zone:"odeon",           name:"Кино Одеон – последна прожекция",               endHour:22,   boost:1.4, repeat:"daily" },
+  { zone:"vlaykova",        name:"Кино Влайкова – последна прожекция",            endHour:21.5, boost:1.4, repeat:"daily" },
+  // Следобедни прожекции (~17:30–18:00 край)
+  { zone:"cinema_city_ml",  name:"Cinema City – следобедна прожекция",            endHour:17.5, boost:1.2, repeat:"daily" },
+  { zone:"cinema_city_ser", name:"Cinema City Сердика – следобед",                endHour:17.5, boost:1.2, repeat:"daily" },
+
+  // ══ РЕСТОРАНТИ / НОЩЕН ЖИВОТ ══
+  // Пик 1: вечеря ~21:30 (хората тръгват след вечеря)
+  { zone:"vitosha_bar",    name:"Бул.Витоша – след вечеря",            endHour:22,   boost:2.2, repeat:"daily" },
+  { zone:"lozenets_rest",  name:"Лозенец ресторанти – след вечеря",    endHour:22,   boost:2.0, repeat:"daily" },
+  { zone:"center_bars",    name:"Центъра – барове след вечеря",        endHour:22,   boost:1.8, repeat:"daily" },
+  { zone:"iztok_rest",     name:"Изток ресторанти – след вечеря",      endHour:22,   boost:1.6, repeat:"daily" },
+  // Пик 2: след клуб (01:00–02:00) — само уикенд
+  { zone:"vitosha_bar",    name:"Бул.Витоша – след клуб/бар",          endHour:24,   boost:2.5, repeat:"fri-sat" },
+  { zone:"center_bars",    name:"Центъра – след клуб",                 endHour:24,   boost:2.2, repeat:"fri-sat" },
+  { zone:"studentski_bar", name:"Студентски – след клуб",              endHour:24,   boost:2.0, repeat:"fri-sat" },
+  // Ранна вечеря (~19:30–20:00) — малък пик
+  { zone:"vitosha_bar",    name:"Бул.Витоша – ранна вечеря",           endHour:20,   boost:1.2, repeat:"daily" },
+  { zone:"lozenets_rest",  name:"Лозенец – ранна вечеря",              endHour:19.5, boost:1.1, repeat:"daily" },
+
+  // ══ ТРАФИК — задръствания (обратна посока = шанс!) ══
+  // Сутрин: 07:30–09:30 — всички към Центъра
+  { zone:"jam_orl",    name:"🚦 Задръстване СУТРИН – Орлов мост",      endHour:9,    boost:1.8, repeat:"mon-fri" },
+  { zone:"jam_tsar",   name:"🚦 Задръстване СУТРИН – Цариградско",     endHour:9,    boost:2.0, repeat:"mon-fri" },
+  { zone:"jam_ndk",    name:"🚦 Задръстване СУТРИН – НДК/България",    endHour:9,    boost:1.6, repeat:"mon-fri" },
+  { zone:"jam_serdika",name:"🚦 Задръстване СУТРИН – Сердика",         endHour:9,    boost:1.5, repeat:"mon-fri" },
+  // Следобед: 17:00–19:00 — всички от Центъра навън
+  { zone:"jam_orl",    name:"🚦 Задръстване СЛЕДОБЕД – Орлов мост",    endHour:19,   boost:2.2, repeat:"mon-fri" },
+  { zone:"jam_tsar",   name:"🚦 Задръстване СЛЕДОБЕД – Цариградско",   endHour:18.5, boost:2.5, repeat:"mon-fri" },
+  { zone:"jam_ndk",    name:"🚦 Задръстване СЛЕДОБЕД – НДК",           endHour:18.5, boost:2.0, repeat:"mon-fri" },
+  { zone:"jam_serdika",name:"🚦 Задръстване СЛЕДОБЕД – Сердика",       endHour:18.5, boost:1.8, repeat:"mon-fri" },
 ];
 
 // ═══════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════
-function demandColor(score) {
+function demandColor(score, type) {
+  // Traffic jam zones get special purple "reverse direction" color
+  if (type === 'traffic' && score >= 1.5)
+    return {fill:"#a855f7",fillAlpha:0.50,stroke:"#d08dff",label:"🚦 ОБР.ПОСОКА!"};
   if (score>=3.2) return {fill:"#ef4444",fillAlpha:0.55,stroke:"#ff7777",label:"ПИК 🔥"};
   if (score>=2.4) return {fill:"#f97316",fillAlpha:0.50,stroke:"#ffaa55",label:"Висок ▲"};
   if (score>=1.6) return {fill:"#f59e0b",fillAlpha:0.45,stroke:"#ffd060",label:"Среден"};
@@ -430,6 +603,9 @@ function dayMatches(ev) {
   if(ev.repeat==="thu-sat")  return [4,5,6].includes(todayDay);
   if(ev.repeat==="fri-sat")  return [5,6].includes(todayDay);
   if(ev.repeat==="tue-sat")  return todayDay>=2&&todayDay<=6;
+  if(ev.repeat==="tue-sun")  return todayDay>=2||todayDay===0;
+  if(ev.repeat==="wed-sat")  return todayDay>=3&&todayDay<=6;
+  if(ev.repeat==="sat")      return todayDay===6;
   return true;
 }
 
@@ -501,7 +677,7 @@ let userMarker=null, userLat=null, userLng=null, watchId=null;
 
 function getScoreColor(score){
   // Returns leaflet-compatible color object
-  const c=demandColor(score);
+  const z2=ZONES.find(x=>x.id===zid); const c=demandColor(score, z2?.type);
   return{color:c.stroke, fillColor:c.fill, fillOpacity:c.fillAlpha, weight:1.5, opacity:0.85};
 }
 
@@ -519,7 +695,7 @@ function showZonePopup(zid){
   if(!z) return;
   const{scores,activeEvents}=computeScores(currentHour);
   const s=scores[zid]||0;
-  const c=demandColor(s);
+  const c=demandColor(s, z?.type||z2?.type);
   const evs=(activeEvents[zid]||[]).slice(0,3);
   const evHtml=evs.length?evs.map(e=>`<div>• ${e.name}</div>`).join(''):'<div style="color:#4a6080">Базово търсене</div>';
   const pct=Math.min(100,(s/4.5)*100);
@@ -617,13 +793,133 @@ function render(hour){
   drawSparkline(hour);
 
   // Top hint
-  const top=Object.entries(scores).sort((a,b)=>b[1]-a[1])[0];
+  const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  const top=sorted[0];
   const tz=ZONES.find(z=>z.id===top[0]);
   document.getElementById('tl-hint').textContent=
     dead?'— хората са на маса или вкъщи':`Топ: ${tz?.icon||''} ${tz?.name||top[0]} (${top[1].toFixed(1)})`;
 
-  // Update nav if active
+  // ── ZONE LIST SIDEBAR ──
+  const zList=document.getElementById('zone-list');
+  if(zList){
+    zList.innerHTML=sorted.map(([zid,score])=>{
+      const z=ZONES.find(x=>x.id===zid); if(!z) return '';
+      const z2=ZONES.find(x=>x.id===zid); const c=demandColor(score, z2?.type);
+      const ev=(activeEvents[zid]||[]);
+      const sub=ev.length?ev[0].name:'';
+      return `<div class="zone-item" onclick="selectZoneFromList('${zid}')" id="li-${zid}">
+        <div class="zone-dot" style="background:${c.fill}"></div>
+        <div style="flex:1;min-width:0">
+          <div class="zone-name">${z.icon} ${z.name}</div>
+          ${sub?`<div class="zone-sub">${sub}</div>`:''}
+        </div>
+        <div class="zone-score" style="color:${c.fill}">${score.toFixed(1)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Update nav and direction hint
   if(navTarget&&userLat!==null) updateNavDisplay();
+  if(userLat!==null) updateDirectionHint(scores);
+}
+
+function selectZoneFromList(zid){
+  showZonePopup(zid);
+  const z=ZONES.find(x=>x.id===zid);
+  if(z) map.setView([z.lat,z.lng],15);
+}
+window.selectZoneFromList=selectZoneFromList;
+
+// ═══════════════════════════════════════════════
+// DIRECTION HINT — стрелка към близка жълта/орн зона
+// ═══════════════════════════════════════════════
+const ARROWS_8 = ['⬆️','↗️','➡️','↘️','⬇️','↙️','⬅️','↖️'];
+const DIRS_BG  = ['С','СИ','И','ЮИ','Ю','ЮЗ','З','СЗ'];
+
+// Address lookup cache
+const addrCache = {};
+
+async function getAddress(lat,lng){
+  const key=`${lat.toFixed(4)},${lng.toFixed(4)}`;
+  if(addrCache[key]) return addrCache[key];
+  try{
+    const url=`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=17`;
+    const r=await fetch(url,{headers:{'User-Agent':'SofiaTaxiDemand/1.0'}});
+    const d=await r.json();
+    const road=d.address?.road||d.address?.pedestrian||'';
+    const num=d.address?.house_number||'';
+    const addr=road?(road+(num?' '+num:'')):'';
+    addrCache[key]=addr;
+    return addr;
+  }catch(e){ return ''; }
+}
+
+let dirHintZid=null, dirHintSuppressed=false;
+
+function closeDirHint(){
+  dirHintSuppressed=true;
+  document.getElementById('direction-hint').style.display='none';
+}
+window.closeDirHint=closeDirHint;
+
+function updateDirectionHint(scores){
+  if(userLat===null||dirHintSuppressed) return;
+  // Find nearest zone with score >= 1.6 (yellow/orange/red)
+  let best=null, bestDist=Infinity, bestScore=0;
+  ZONES.forEach(z=>{
+    const s=scores[z.id]||0;
+    if(s<1.6) return; // only yellow+
+    const d=haversine(userLat,userLng,z.lat,z.lng);
+    // Weight: closer & higher score wins
+    const w=d/(s*s);
+    if(w<bestDist){ bestDist=w; best=z; bestScore=s; }
+  });
+
+  const panel=document.getElementById('direction-hint');
+  if(!best){ panel.style.display='none'; return; }
+  if(best.id===dirHintZid&&panel.style.display!=='none') return; // no flicker
+  dirHintZid=best.id;
+
+  const realDist=haversine(userLat,userLng,best.lat,best.lng);
+  const bear=bearing(userLat,userLng,best.lat,best.lng);
+
+  // Device heading correction
+  let relBear=bear;
+  if(deviceHeading!==null) relBear=(bear-deviceHeading+360)%360;
+
+  const arrowIdx=Math.round(relBear/45)%8;
+  const cardDir=DIRS_BG[Math.round(bear/45)%8];
+  const distTxt=realDist<1000?`${Math.round(realDist)} м`:`${(realDist/1000).toFixed(1)} км`;
+  const c=demandColor(bestScore);
+
+  document.getElementById('dh-arrow').textContent=ARROWS_8[arrowIdx];
+  document.getElementById('dh-name').textContent=`${best.icon} ${best.name}`;
+  document.getElementById('dh-addr').textContent=`Посока ${cardDir} · ${Math.round(bear)}°`;
+  document.getElementById('dh-dist').textContent=`📏 ${distTxt} от теб`;
+  document.getElementById('dh-score').textContent=bestScore.toFixed(1);
+  document.getElementById('dh-score').style.color=c.fill;
+  panel.style.display='block';
+  panel.style.borderTopColor=c.fill;
+
+  // Special message for traffic zones
+  const isJam = best.type === 'traffic';
+  document.getElementById('dh-name').textContent =
+    isJam ? `🚦 ${best.name} — ДВИЖИ СЕ ОБРАТНО!` : `${best.icon} ${best.name}`;
+  document.getElementById('dh-name').style.color = isJam ? '#a855f7' : 'var(--amber)';
+
+  // Draw dashed line on map (replace previous)
+  if(window._dirLine) map.removeLayer(window._dirLine);
+  window._dirLine=L.polyline([[userLat,userLng],[best.lat,best.lng]],{
+    color:c.fill, weight:2.5, dashArray:'6,5', opacity:0.65
+  }).addTo(map);
+
+  // Fetch address async and update
+  getAddress(best.lat,best.lng).then(addr=>{
+    if(addr && dirHintZid===best.id){
+      document.getElementById('dh-addr').textContent=
+        `${addr} · ${cardDir} · ${distTxt}`;
+    }
+  });
 }
 
 // ═══════════════════════════════════════════════
@@ -662,7 +958,7 @@ function startNav(zid){
   document.getElementById('nav-target').textContent=`${z.icon} ${z.name}`;
   const{scores}=computeScores(currentHour);
   const s=scores[zid]||0;
-  const c=demandColor(s);
+  const c=demandColor(s, z?.type||z2?.type);
   document.getElementById('nav-score').textContent=s.toFixed(1);
   document.getElementById('nav-score').style.color=c.fill;
 
@@ -717,7 +1013,7 @@ function startGPS(){
         const pulseIcon = L.divIcon({
           className:'',
           html:`<div style="position:relative;width:24px;height:24px;">
-            <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,229,255,.25);animation:pulse-ring 1.8s ease-out infinite;"></div>
+            <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,229,255,.25);animation:pulse-ring 3s ease-out infinite;"></div>
             <div style="position:absolute;inset:5px;border-radius:50%;background:#00e5ff;border:2px solid #fff;box-shadow:0 0 8px #00e5ff;"></div>
           </div>`,
           iconSize:[24,24], iconAnchor:[12,12],
@@ -729,6 +1025,9 @@ function startGPS(){
         userMarker.setLatLng([userLat,userLng]);
       }
       if(navTarget) updateNavDisplay();
+      // Auto-direction hint to nearest worthy zone
+      const {scores:sc}=computeScores(currentHour);
+      updateDirectionHint(sc);
     },
     err=>{
       document.getElementById('nav-hint').textContent='GPS грешка: '+err.message;
@@ -744,11 +1043,14 @@ document.getElementById('gps-btn').addEventListener('click',()=>{
     watchId=null;
     document.getElementById('gps-btn').classList.remove('active');
     if(userMarker){map.removeLayer(userMarker);userMarker=null;}
+    if(window._dirLine){map.removeLayer(window._dirLine);window._dirLine=null;}
+    if(window._navLine){map.removeLayer(window._navLine);window._navLine=null;}
+    document.getElementById('direction-hint').style.display='none';
     userLat=null;userLng=null;
   } else {
+    dirHintSuppressed=false; // reset suppression on new GPS session
+    dirHintZid=null;
     startGPS();
-    // Also find closest high-demand zone
-    if(userLat!==null) autoNavClosestPeak();
   }
 });
 
