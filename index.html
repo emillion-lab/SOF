@@ -171,78 +171,94 @@ if (typeof L === 'undefined') {
   document.getElementById('map').innerHTML = '<div style="color:#ef4444;font-family:monospace;padding:20px">Leaflet не се зареди. Моля отвори файла в браузър (не в Claude).</div>';
   return;
 }
+// ═══════════════════════════════════════════════
+// ZONE DEFINITIONS — верифицирани GPS координати
+// wazeName = точното търсене в Waze по обект/адрес
+// ═══════════════════════════════════════════════
 const ZONES = [
-  // type: airport / office / mall / hotel / transit / venue / hospital / university / residential_lux / leisure
-  { id:"airport",    name:"Летище София (СОФ)",                    icon:"✈️",  lat:42.6950, lng:23.4083, radius:600, type:"airport" },
+  // ── ЛЕТИЩЕ ──
+  { id:"airport",       name:"Летище София (СОФ)",                    icon:"✈️",  lat:42.6950, lng:23.4083, radius:600, type:"airport",          wazeName:"Летище София" },
 
   // ── ОФИСИ КЛАС А ──
-  { id:"bpark",      name:"Business Park Sofia",                   icon:"🏢", lat:42.6292, lng:23.3731, radius:400, type:"office" },
-  { id:"garitage",   name:"Garitage Park офиси",                   icon:"🏢", lat:42.6227, lng:23.3735, radius:350, type:"office" },
-  { id:"polygraphia",name:"Polygraphia Office Center",             icon:"🏢", lat:42.6700, lng:23.3820, radius:280, type:"office" },
-  { id:"capital_fort",name:"Capital Fort",                         icon:"🏢", lat:42.6464, lng:23.3958, radius:250, type:"office" },
-  { id:"megapark",   name:"Megapark (до The Mall)",                icon:"🏢", lat:42.6605, lng:23.3822, radius:280, type:"office" },
-  { id:"advance_bc", name:"Advance Business Center I+II",          icon:"🏢", lat:42.6290, lng:23.3720, radius:250, type:"office" },
-  { id:"bulgaria_towers",name:"Bulgaria Towers (North+South)",     icon:"🏢", lat:42.6641, lng:23.2885, radius:220, type:"office" },
-  { id:"park_lane",  name:"Park Lane Office (НПЗ Хладилника)",     icon:"🏢", lat:42.6618, lng:23.3441, radius:220, type:"office" },
-  { id:"expo2000",   name:"Expo 2000 / Ellipse Center",            icon:"🏢", lat:42.6535, lng:23.3958, radius:300, type:"office" },
-  { id:"sofia_tower",name:"Sofia Tower I+II (Mall of Sofia)",      icon:"🏢", lat:42.6981, lng:23.3086, radius:200, type:"office" },
-  { id:"iec",        name:"IEC Sofia (Интер Експо Център)",        icon:"🏢", lat:42.6737, lng:23.4012, radius:300, type:"office" },
-  { id:"office_iztok",name:"Офис зона Изток/Докторски",           icon:"🏢", lat:42.6762, lng:23.3620, radius:300, type:"office" },
-  { id:"office_center",name:"Офис Център (бул.Витоша/Патриарх)",  icon:"🏢", lat:42.6900, lng:23.3220, radius:250, type:"office" },
+  { id:"bpark",         name:"Business Park Sofia",                   icon:"🏢", lat:42.6292, lng:23.3731, radius:380, type:"office",           wazeName:"Business Park Sofia" },
+  { id:"garitage",      name:"Garitage Park офиси",                   icon:"🏢", lat:42.6227, lng:23.3735, radius:320, type:"office",           wazeName:"Garitage Park Sofia" },
+  { id:"polygraphia",   name:"Polygraphia Office Center",             icon:"🏢", lat:42.6700, lng:23.3820, radius:260, type:"office",           wazeName:"Polygraphia Office Center Sofia" },
+  { id:"capital_fort",  name:"Capital Fort",                          icon:"🏢", lat:42.6464, lng:23.3958, radius:230, type:"office",           wazeName:"Capital Fort Sofia" },
+  { id:"megapark",      name:"Megapark (до The Mall)",                icon:"🏢", lat:42.6600, lng:23.3840, radius:260, type:"office",           wazeName:"Megapark Sofia" },
+  { id:"advance_bc",    name:"Advance Business Center I+II",          icon:"🏢", lat:42.6290, lng:23.3720, radius:230, type:"office",           wazeName:"Advance Business Center Sofia" },
+  { id:"bulgaria_towers",name:"Bulgaria Towers",                      icon:"🏢", lat:42.6641, lng:23.2885, radius:220, type:"office",           wazeName:"Bulgaria Towers Sofia" },
+  { id:"park_lane",     name:"Park Lane Office (НПЗ Хладилника)",     icon:"🏢", lat:42.6580, lng:23.3420, radius:200, type:"office",           wazeName:"Park Lane Office Center Sofia" },
+  { id:"expo2000",      name:"Expo 2000 / Ellipse Center",            icon:"🏢", lat:42.6535, lng:23.3958, radius:280, type:"office",           wazeName:"Expo 2000 Sofia" },
+  { id:"sofia_tower",   name:"Sofia Tower I+II",                      icon:"🏢", lat:42.6981, lng:23.3086, radius:180, type:"office",           wazeName:"Sofia Tower Mall of Sofia" },
+  { id:"iec",           name:"IEC / Интер Експо Център",              icon:"🏢", lat:42.6710, lng:23.4020, radius:280, type:"office",           wazeName:"Inter Expo Center Sofia" },
+  { id:"office_iztok",  name:"Офис зона Изток / Докторски",           icon:"🏢", lat:42.6762, lng:23.3620, radius:280, type:"office",           wazeName:"Докторски паметник София" },
+  { id:"office_center", name:"Офис Център (пл.Патриарх Евтимий)",    icon:"🏢", lat:42.6883, lng:23.3285, radius:230, type:"office",           wazeName:"площад Патриарх Евтимий София" },
+  { id:"sky_fort",      name:"Sky Fort (Цариградско шосе)",           icon:"🏢", lat:42.6460, lng:23.3975, radius:200, type:"office",           wazeName:"Sky Fort Sofia" },
 
   // ── МОЛОВЕ ──
-  { id:"serdika",    name:"Мол Сердика",                           icon:"🛍", lat:42.6920, lng:23.3540, radius:250, type:"mall" },
-  { id:"paradise",   name:"Paradise Center",                       icon:"🛍", lat:42.6578, lng:23.3144, radius:300, type:"mall" },
-  { id:"mall_sofia", name:"Mall of Sofia",                         icon:"🛍", lat:42.6981, lng:23.3086, radius:220, type:"mall" },
-  { id:"ring_mall",  name:"Ring Mall / IKEA",                      icon:"🛍", lat:42.6246, lng:23.3519, radius:350, type:"mall" },
-  { id:"the_mall",   name:"The Mall Sofia",                        icon:"🛍", lat:42.6605, lng:23.3822, radius:300, type:"mall" },
-  { id:"markovo",    name:"България Мол / Мол Маркова Тепе",       icon:"🛍", lat:42.6641, lng:23.2885, radius:250, type:"mall" },
+  { id:"serdika",       name:"Мол Сердика",                           icon:"🛍", lat:42.6920, lng:23.3540, radius:240, type:"mall",             wazeName:"Serdika Center Sofia" },
+  { id:"paradise",      name:"Paradise Center",                       icon:"🛍", lat:42.6578, lng:23.3144, radius:290, type:"mall",             wazeName:"Paradise Center Sofia" },
+  { id:"mall_sofia",    name:"Mall of Sofia",                         icon:"🛍", lat:42.6981, lng:23.3086, radius:210, type:"mall",             wazeName:"Mall of Sofia" },
+  { id:"ring_mall",     name:"Ring Mall / IKEA",                      icon:"🛍", lat:42.6246, lng:23.3519, radius:340, type:"mall",             wazeName:"Ring Mall Sofia" },
+  { id:"the_mall",      name:"The Mall Sofia",                        icon:"🛍", lat:42.6605, lng:23.3822, radius:290, type:"mall",             wazeName:"The Mall Sofia" },
+  { id:"bulgaria_mall", name:"България Мол",                         icon:"🛍", lat:42.6641, lng:23.2885, radius:240, type:"mall",             wazeName:"Bulgaria Mall Sofia" },
+  { id:"park_center",   name:"Park Center (до НДК)",                  icon:"🛍", lat:42.6786, lng:23.3206, radius:190, type:"mall",             wazeName:"Park Center Sofia" },
 
   // ── ХОТЕЛИ ──
-  { id:"hotels_ctr", name:"Хотели Център (Radisson/Hilton/Marinela)",icon:"🏨",lat:42.6953, lng:23.3242, radius:300, type:"hotel" },
-  { id:"hotels_ndk", name:"Хотели НДК (Kempinski/InterCont.)",     icon:"🏨", lat:42.6843, lng:23.3196, radius:200, type:"hotel" },
+  { id:"hotels_ctr",    name:"Хотели Център (Radisson/Hilton)",       icon:"🏨", lat:42.6953, lng:23.3242, radius:280, type:"hotel",            wazeName:"Radisson Blu Sofia" },
+  { id:"hotels_ndk",    name:"Kempinski / InterContinental НДК",      icon:"🏨", lat:42.6855, lng:23.3188, radius:180, type:"hotel",            wazeName:"Kempinski Hotel Zografski Sofia" },
+  { id:"hotel_marinela",name:"Хотел Маринела",                        icon:"🏨", lat:42.6690, lng:23.3175, radius:160, type:"hotel",            wazeName:"Hotel Marinela Sofia" },
 
   // ── ТРАНЗИТ ──
-  { id:"cjp",        name:"Централна ЖП гара",                     icon:"🚂", lat:42.7130, lng:23.3218, radius:250, type:"transit" },
-  { id:"ag_yug",     name:"Автогара Юг",                           icon:"🚌", lat:42.6824, lng:23.3121, radius:200, type:"transit" },
-  { id:"ag_pod",     name:"Автогара Подуяне",                      icon:"🚌", lat:42.7015, lng:23.3758, radius:200, type:"transit" },
+  { id:"cjp",           name:"Централна ЖП гара",                     icon:"🚂", lat:42.7121, lng:23.3210, radius:240, type:"transit",          wazeName:"Централна жп гара София" },
+  { id:"cab_north",     name:"Централна автогара",                    icon:"🚌", lat:42.7103, lng:23.3233, radius:200, type:"transit",          wazeName:"Централна автогара София" },
+  { id:"ag_yug",        name:"Автогара Юг",                           icon:"🚌", lat:42.6760, lng:23.3095, radius:190, type:"transit",          wazeName:"Автогара Юг София" },
+  { id:"ag_pod",        name:"Автогара Подуяне",                      icon:"🚌", lat:42.7015, lng:23.3758, radius:190, type:"transit",          wazeName:"Автогара Подуяне София" },
 
   // ── КОНЦЕРТИ / VENUES ──
-  { id:"arena",      name:"Арена 8888",                            icon:"🎸", lat:42.7102, lng:23.3548, radius:300, type:"venue" },
-  { id:"ndk",        name:"НДК / Театри",                          icon:"🎭", lat:42.6843, lng:23.3196, radius:280, type:"venue" },
-  { id:"borisova",   name:"Борисова градина / Стадион",            icon:"🌳", lat:42.6838, lng:23.3450, radius:350, type:"leisure" },
-  { id:"lozenets",   name:"Лозенец / Водна кула",                  icon:"🎨", lat:42.6713, lng:23.3382, radius:280, type:"venue" },
+  { id:"arena",         name:"Арена 8888",                            icon:"🎸", lat:42.6711, lng:23.3692, radius:290, type:"venue",            wazeName:"Arena Sofia 8888" },
+  { id:"ndk",           name:"НДК",                                   icon:"🎭", lat:42.6855, lng:23.3188, radius:260, type:"venue",            wazeName:"Национален дворец на културата НДК" },
+  { id:"borisova",      name:"Борисова градина / Стадион Левски",     icon:"🌳", lat:42.6838, lng:23.3450, radius:340, type:"leisure",          wazeName:"Борисова градина София" },
+  { id:"lozenets_wt",   name:"Водна кула / Лозенец",                  icon:"🎨", lat:42.6713, lng:23.3382, radius:260, type:"venue",            wazeName:"Водна кула Лозенец Sofia" },
+  { id:"vasil_levski",  name:"Национален стадион Васил Левски",       icon:"⚽", lat:42.6966, lng:23.3448, radius:280, type:"venue",            wazeName:"Национален стадион Васил Левски" },
 
   // ── БОЛНИЦИ ──
-  { id:"pirogov",    name:"УМБАЛ Пирогов",                         icon:"🏥", lat:42.6896, lng:23.3253, radius:200, type:"hospital" },
-  { id:"alexand",    name:"Александровска болница",                icon:"🏥", lat:42.6982, lng:23.3295, radius:200, type:"hospital" },
-  { id:"vma",        name:"ВМА",                                   icon:"🏥", lat:42.6834, lng:23.3330, radius:180, type:"hospital" },
+  // Пирогов е на бул.Тотлебен 21 — не е при Докторски!
+  { id:"pirogov",       name:"УМБАЛ Пирогов (бул.Тотлебен 21)",       icon:"🏥", lat:42.6933, lng:23.3177, radius:190, type:"hospital",         wazeName:"УМБАЛСМ Пирогов бул Тотлебен 21 София" },
+  { id:"alexand",       name:"Александровска болница",                icon:"🏥", lat:42.6864, lng:23.3089, radius:190, type:"hospital",         wazeName:"УМБАЛ Александровска болница София" },
+  { id:"vma",           name:"ВМА (Военномедицинска академия)",        icon:"🏥", lat:42.6860, lng:23.3330, radius:170, type:"hospital",         wazeName:"ВМА Военномедицинска академия София" },
+  { id:"tokuda",        name:"Токуда болница",                        icon:"🏥", lat:42.6567, lng:23.3373, radius:160, type:"hospital",         wazeName:"Токуда болница София" },
 
   // ── УНИВЕРСИТЕТИ ──
-  { id:"unss",       name:"УНСС",                                  icon:"🎓", lat:42.6796, lng:23.3127, radius:250, type:"university" },
-  { id:"nbu",        name:"НБУ",                                   icon:"🎓", lat:42.6558, lng:23.2891, radius:200, type:"university" },
-  { id:"tu",         name:"Технически университет",                icon:"🎓", lat:42.6569, lng:23.3532, radius:220, type:"university" },
+  { id:"unss",          name:"УНСС",                                  icon:"🎓", lat:42.6796, lng:23.3127, radius:240, type:"university",       wazeName:"УНСС София" },
+  { id:"nbu",           name:"НБУ",                                   icon:"🎓", lat:42.6558, lng:23.2891, radius:190, type:"university",       wazeName:"Нов Български Университет НБУ" },
+  { id:"tu",            name:"Технически университет",               icon:"🎓", lat:42.6569, lng:23.3532, radius:210, type:"university",       wazeName:"Технически университет София" },
+  { id:"su",            name:"Софийски университет",                 icon:"🎓", lat:42.6943, lng:23.3318, radius:200, type:"university",       wazeName:"Софийски университет Св Климент Охридски" },
 
   // ── ЛУКСОЗНИ ЖИЛИЩА ──
-  { id:"manast",     name:"Манастирски ливади (луксозни жк)",      icon:"🏘", lat:42.6671, lng:23.3155, radius:400, type:"residential_lux" },
-  { id:"simenovo",   name:"Симеоново / Hill Side / в.з.",          icon:"🌲", lat:42.6428, lng:23.3142, radius:400, type:"residential_lux" },
-  { id:"boyana",     name:"Бояна / Драгалевци",                    icon:"🌳", lat:42.6348, lng:23.2889, radius:450, type:"residential_lux" },
+  // Hill Side = бул.Симеоновско шосе 97К — СЕГА ПРАВИЛНО!
+  { id:"simenovo",      name:"Симеоново / Hill Side (Симеоновско шосе 97К)", icon:"🌲", lat:42.6395, lng:23.3310, radius:380, type:"residential_lux", wazeName:"Hill Side Sofia Симеоновско шосе 97" },
+  { id:"manast",        name:"Манастирски ливади (луксозни жк)",      icon:"🏘", lat:42.6671, lng:23.3155, radius:380, type:"residential_lux", wazeName:"Манастирски ливади София" },
+  { id:"boyana",        name:"Бояна / Драгалевци",                    icon:"🌳", lat:42.6348, lng:23.2889, radius:430, type:"residential_lux", wazeName:"Бояна квартал София" },
+  { id:"vitosha_vz",    name:"в.з. Симеоново / Камбаните",            icon:"⛰️",  lat:42.6275, lng:23.3480, radius:350, type:"residential_lux", wazeName:"вилна зона Симеоново София" },
 ];
 
 // ═══════════════════════════════════════════════
 // BASE DEMAND
 // ═══════════════════════════════════════════════
 const BASE = {
-  airport:1.4, bpark:0.5, garitage:0.4, polygraphia:0.4, capital_fort:0.4,
-  megapark:0.4, advance_bc:0.4, bulgaria_towers:0.4, park_lane:0.4, expo2000:0.4,
-  sofia_tower:0.4, iec:0.4, office_iztok:0.5, office_center:0.6,
-  serdika:0.8, paradise:0.7, mall_sofia:0.6, ring_mall:0.6, the_mall:0.6, markovo:0.5,
-  hotels_ctr:0.9, hotels_ndk:0.7,
-  cjp:0.9, ag_yug:0.7, ag_pod:0.5,
-  arena:0.3, ndk:0.7, borisova:0.3, lozenets:0.4,
-  pirogov:0.8, alexand:0.7, vma:0.6,
-  unss:0.5, nbu:0.4, tu:0.4,
-  manast:0.5, simenovo:0.4, boyana:0.4,
+  airport:1.4,
+  bpark:0.5, garitage:0.4, polygraphia:0.4, capital_fort:0.4, megapark:0.4,
+  advance_bc:0.4, bulgaria_towers:0.4, park_lane:0.4, expo2000:0.4,
+  sofia_tower:0.4, iec:0.4, office_iztok:0.5, office_center:0.6, sky_fort:0.4,
+  serdika:0.8, paradise:0.7, mall_sofia:0.6, ring_mall:0.6, the_mall:0.6,
+  bulgaria_mall:0.6, park_center:0.5,
+  hotels_ctr:0.9, hotels_ndk:0.7, hotel_marinela:0.6,
+  cjp:0.9, cab_north:0.8, ag_yug:0.7, ag_pod:0.5,
+  arena:0.3, ndk:0.7, borisova:0.3, lozenets_wt:0.4, vasil_levski:0.3,
+  pirogov:0.8, alexand:0.7, vma:0.6, tokuda:0.5,
+  unss:0.5, nbu:0.4, tu:0.4, su:0.5,
+  simenovo:0.4, manast:0.5, boyana:0.4, vitosha_vz:0.3,
 };
 
 // ═══════════════════════════════════════════════
@@ -456,7 +472,7 @@ function showZonePopup(zid){
       <div class="popup-ev">${evHtml}</div>
       <button class="popup-nav-btn" onclick="startNav('${zid}')">🧭 Навигирай (in-app)</button>
       <div style="display:flex;gap:6px;margin-top:6px;">
-        <a href="https://waze.com/ul?ll=${z.lat},${z.lng}&navigate=yes&zoom=17" target="_blank"
+        <a href="https://waze.com/ul?q=${encodeURIComponent(z.wazeName||z.name)}&navigate=yes" target="_blank"
            style="flex:1;display:block;text-align:center;font-size:10px;color:#00e5ff;font-family:'Share Tech Mono',monospace;text-decoration:none;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;">
           🚗 Waze ↗
         </a>
