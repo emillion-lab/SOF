@@ -675,15 +675,14 @@ const circleMap={};
 let currentHour=16, selectedZoneId=null, navTarget=null;
 let userMarker=null, userLat=null, userLng=null, watchId=null;
 
-function getScoreColor(score){
-  // Returns leaflet-compatible color object
-  const z2=ZONES.find(x=>x.id===zid); const c=demandColor(score, z2?.type);
+function getScoreColor(score, type){
+  const c=demandColor(score, type);
   return{color:c.stroke, fillColor:c.fill, fillOpacity:c.fillAlpha, weight:1.5, opacity:0.85};
 }
 
 function buildCircles(){
   ZONES.forEach(z=>{
-    const circle=L.circle([z.lat,z.lng],{radius:z.radius,...getScoreColor(BASE[z.id]||0.5)});
+    const circle=L.circle([z.lat,z.lng],{radius:z.radius,...getScoreColor(BASE[z.id]||0.5, z.type)});
     circle.on('click',()=>showZonePopup(z.id));
     circle.addTo(map);
     circleMap[z.id]=circle;
@@ -695,7 +694,7 @@ function showZonePopup(zid){
   if(!z) return;
   const{scores,activeEvents}=computeScores(currentHour);
   const s=scores[zid]||0;
-  const c=demandColor(s, z?.type||z2?.type);
+  const c=demandColor(s, z?.type);
   const evs=(activeEvents[zid]||[]).slice(0,3);
   const evHtml=evs.length?evs.map(e=>`<div>• ${e.name}</div>`).join(''):'<div style="color:#4a6080">Базово търсене</div>';
   const pct=Math.min(100,(s/4.5)*100);
@@ -727,7 +726,7 @@ function updateCircles(){
   const{scores}=computeScores(currentHour);
   ZONES.forEach(z=>{
     const s=scores[z.id]||0;
-    const opts=getScoreColor(s);
+    const opts=getScoreColor(s, z.type);
     circleMap[z.id]?.setStyle(opts);
   });
 }
@@ -804,7 +803,7 @@ function render(hour){
   if(zList){
     zList.innerHTML=sorted.map(([zid,score])=>{
       const z=ZONES.find(x=>x.id===zid); if(!z) return '';
-      const z2=ZONES.find(x=>x.id===zid); const c=demandColor(score, z2?.type);
+      const c=demandColor(score, z.type);
       const ev=(activeEvents[zid]||[]);
       const sub=ev.length?ev[0].name:'';
       return `<div class="zone-item" onclick="selectZoneFromList('${zid}')" id="li-${zid}">
@@ -958,7 +957,7 @@ function startNav(zid){
   document.getElementById('nav-target').textContent=`${z.icon} ${z.name}`;
   const{scores}=computeScores(currentHour);
   const s=scores[zid]||0;
-  const c=demandColor(s, z?.type||z2?.type);
+  const c=demandColor(s, z?.type);
   document.getElementById('nav-score').textContent=s.toFixed(1);
   document.getElementById('nav-score').style.color=c.fill;
 
