@@ -25,3 +25,5 @@ jobs:
           git add flight-cache.json
           git commit -m "update flights" || echo "no changes"
           git push
+
+# test
