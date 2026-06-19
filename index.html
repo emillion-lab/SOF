@@ -175,24 +175,7 @@ body.map-fullscreen #fs-btn  { bottom:70px; }
 body.map-fullscreen #zone-sidebar { display:none; }
 
 /* Legend */
-#legend{
-  position:fixed;left:8px;bottom:70px;z-index:1500;
-  background:#0a172a88;border:1px solid #182d4766;border-radius:6px;
-  padding:5px 7px;font-size:9px;color:var(--muted);
-  cursor:pointer;transition:all .25s;
-  backdrop-filter:blur(4px);
-  max-width:90px;
-}
-#legend.expanded{
-  background:#0a172af5;border-color:var(--border);
-  max-width:160px;font-size:12px;padding:9px 12px;
-}
-#legend.expanded .leg-sq{width:13px;height:13px;}
-#legend.expanded .leg{gap:7px;margin-bottom:5px;}
-.leg{display:flex;align-items:center;gap:4px;margin-bottom:2px;}
-.leg:last-child{margin-bottom:0;}
-.leg-sq{width:9px;height:9px;border-radius:2px;opacity:.8;transition:all .25s;}
-
+#legend.expanded #legend.expanded 
 /* Leaflet popup override */
 .leaflet-popup-content-wrapper{background:#0d1929;border:1px solid var(--border);border-radius:8px;color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,.5);}
 .leaflet-popup-tip{background:#0d1929;}
@@ -259,9 +242,6 @@ body.map-fullscreen #zone-sidebar { display:none; }
 <button id="gps-btn" title="GPS локация">📍</button>
 <button id="fs-btn"  title="Fullscreen карта">⛶</button>
 
-<!-- Legend -->
-<div id="legend">
-  <div class="leg"><div class="leg-sq" style="background:#ef4444"></div>ПИК 🔥</div>
   <div class="leg"><div class="leg-sq" style="background:#f97316"></div>Висок</div>
   <div class="leg"><div class="leg-sq" style="background:#f59e0b"></div>Среден</div>
   <div class="leg"><div class="leg-sq" style="background:#22c55e"></div>Нормален</div>
@@ -730,7 +710,7 @@ const TRAFFIC_INFO = {
     freeDir:'↔ СТРАНИЧНИ УЛ.',
     freeArrow:'↔',
     color:'#a855f7',
-    tip:'Задръстено по бул.Витоша. Използвай странични улици!',
+    tip:'Задръстено по бул.България. Използвай странични улици!',
     time:'17:00–19:30 делнични',
   },
   jam_serdika: {
@@ -775,17 +755,19 @@ function showZonePopup(zid){
 
   let evHtml;
   if(isJam && trafficInfo){
+    const jamActive = s >= 1.5;
+    const statusColor = jamActive ? '#ef4444' : '#22c55e';
+    const statusText  = jamActive ? '🔴 ЗАДРЪСТЕНО СЕГА' : '🟢 В МОМЕНТА СВОБОДНО';
     evHtml=`
-      <div style="color:#a855f7;font-weight:600;font-size:13px;margin-bottom:4px">
-        🚦 ${trafficInfo.jamDir}
+      <div style="background:${jamActive?'#1a0808':'#081a0d'};border:1px solid ${statusColor};border-radius:6px;padding:5px 8px;margin-bottom:6px;font-size:12px;color:${statusColor};font-weight:600">
+        ${statusText}
       </div>
-      <div style="color:#00e5ff;font-size:12px;margin-bottom:4px">
-        ✅ Свободно: ${trafficInfo.freeDir}
-      </div>
-      <div style="background:#1a0a2e;border:1px solid #a855f7;border-radius:6px;padding:6px 8px;font-size:11px;color:#d08dff;margin-bottom:4px">
-        💡 Карай ${trafficInfo.freeArrow} — обратно на задръстването!
-      </div>
-      <div style="font-size:10px;color:#4a6080">⏰ ${trafficInfo.time}</div>`;
+      <div style="font-size:12px;color:#a855f7;margin-bottom:3px">🚦 ${trafficInfo.jamDir}</div>
+      <div style="font-size:12px;color:#00e5ff;margin-bottom:6px">✅ Свободно: ${trafficInfo.freeDir}</div>
+      ${jamActive ? `<div style="background:#1a0a2e;border:1px solid #a855f7;border-radius:6px;padding:6px 8px;font-size:12px;color:#d08dff;margin-bottom:4px">
+        💡 Карай ${trafficInfo.freeArrow} обратно — стигаш по-бързо!
+      </div>` : ''}
+      <div style="font-size:10px;color:#4a6080">⏰ Пик: ${trafficInfo.time}</div>`;
   } else {
     evHtml=evs.length
       ? evs.map(e=>`<div>• ${e.name}</div>`).join('')
@@ -1386,10 +1368,6 @@ function applyGeoCache(cache, zMap) {
 }
 
 // ── Legend toggle ──
-document.getElementById('legend').addEventListener('click', function(){
-  this.classList.toggle('expanded');
-});
-
 // ── Fullscreen ──
 let isFullscreen = false;
 const fsBtn = document.getElementById('fs-btn');
