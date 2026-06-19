@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Sofia Taxi Demand</title>
+<link rel="stylesheet" href="leaflet.min.css">
+<style>@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Inter:wght@400;500;600&display=swap');
+:root {
+  --bg:#070d1a; --surface:#0d1929; --border:#182d47;
+  --amber:#f59e0b; --cyan:#00e5ff; --green:#22c55e;
+  --red:#ef4444; --orange:#f97316; --muted:#4a6080; --text:#c8daf0;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{min-height:100%;margin:0;padding:0;}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);overflow-x:hidden;}
+
+/* HEADER */
+.header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;z-index:1000;}
+.header h1{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan);letter-spacing:2px;}
+.header p{font-size:8px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:1px;}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:6px;}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--green);animation:blink 1.4s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+#airport-badge{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--amber);}
+
+/* TIMELINE */
+.timeline-panel{background:var(--surface);border-bottom:1px solid var(--border);padding:7px 12px 5px;flex-shrink:0;}
+.tl-top{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;}
+.tl-clock{font-family:'Share Tech Mono',monospace;font-size:20px;color:var(--cyan);}
+.tl-sub{font-size:12px;color:var(--muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tl-dead{font-size:9px;color:var(--red);font-family:'Share Tech Mono',monospace;display:none;}
+#demand-canvas{width:100%;height:40px;display:block;cursor:pointer;min-height:40px;}
+.tl-slider-wrap{margin-top:-4px;}
+input[type=range]{width:100%;-webkit-appearance:none;appearance:none;height:4px;background:transparent;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--cyan);border:2px solid var(--bg);box-shadow:0 0 6px rgba(0,229,255,.7);cursor:pointer;}
+.tl-ticks{display:flex;justify-content:space-between;font-size:8px;color:var(--muted);font-family:'Share Tech Mono',monospace;margin-top:1px;}
+
+/* TICKER */
+.ticker-bar{background:#06101c;border-bottom:1px solid var(--border);padding:0 12px;height:30px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;}
+.ticker-wrap{display:flex;gap:50px;animation:ticker 280s linear infinite;width:max-content;white-space:nowrap;}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tick-item{font-family:'Share Tech Mono',monospace;font-size:12px;}
+.tick-item .ev-time{color:var(--amber);}
+.tick-item .ev-loc{color:var(--muted);}
+
+/* MAP — фиксирана височина вместо flex:1 за да се рендира правилно */
+#map{
+  height: calc(100vh - 340px);
+  min-height: 220px;
+  z-index:1;
+  background:#08111f;
+}
+
+/* NAV PANEL (bottom sheet) */
+#nav-panel{
+  position:fixed;bottom:0;left:0;right:0;
+  background:#0a172af5;border-top:1px solid var(--border);
+  padding:10px 14px;z-index:2000;
+  display:none;flex-direction:column;gap:6px;
+  backdrop-filter:blur(6px);
+}
+#nav-panel.open{display:flex;}
+.nav-title{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan);}
+.nav-target{font-size:13px;font-weight:600;}
+.nav-distance{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--muted);}
+.nav-row{display:flex;gap:8px;align-items:center;}
+#nav-compass{font-size:28px;transition:transform .4s;}
+.nav-hint{font-size:11px;color:var(--text);}
+.nav-close{margin-left:auto;font-size:18px;cursor:pointer;color:var(--muted);padding:0 4px;}
+.nav-score{font-family:'Share Tech Mono',monospace;font-size:16px;font-weight:bold;}
+
+/* GPS button */
+#gps-btn{
+  position:fixed;right:12px;bottom:120px;z-index:1500;
+  width:44px;height:44px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--cyan);font-size:20px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 12px rgba(0,0,0,.5);
+}
+#gps-btn.active{background:#0d2a1a;border-color:var(--green);color:var(--green);}
+
+/* Fullscreen button */
+#fs-btn{
+  position:fixed;right:12px;bottom:70px;z-index:1500;
+  width:44px;height:44px;border-radius:50%;
+  background:var(--surface);border:1px solid var(--border);
+  color:var(--text);font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 12px rgba(0,0,0,.5);
+}
+#fs-btn.active{background:#0d1f38;border-color:var(--cyan);color:var(--cyan);}
+
+/* Fullscreen map mode */
+body.map-fullscreen .header,
+body.map-fullscreen .timeline-panel,
+body.map-fullscreen .ticker-bar { display:none !important; }
+body.map-fullscreen #map { height:100vh !important; height:100dvh !important; }
+body.map-fullscreen #legend { bottom:70px; }
+body.map-fullscreen #gps-btn { bottom:120px; }
+body.map-fullscreen #fs-btn  { bottom:70px; }
+
+/* Pulsing user location dot */
+@keyframes pulse-ring {
+  0%   { transform:scale(1);   opacity:.7; }
+  70%  { transform:scale(3.0); opacity:0;  }
+  100% { transform:scale(3.0); opacity:0;  }
+}
+.user-dot-pulse {
+  width:14px; height:14px; border-radius:50%;
+  background:#00e5ff;
+  animation:pulse-ring 3s ease-out infinite;
+}
+
+/* Traffic jam zones — pulsing purple */
+@keyframes jam-blink {
+  0%,100%{ opacity:1; transform:scale(1); }
+  50%    { opacity:0.5; transform:scale(1.3); }
+}
+@keyframes jam-pulse {
+  0%,100% { opacity:0.7; }
+  50%      { opacity:1.0; }
+}
+.leaflet-interactive[data-jam="1"] {
+  animation: jam-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── DIRECTION ARROW overlay ── */
+#direction-hint {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0;
+  background:#070d1af8;
+  border-top:2px solid var(--amber);
+  padding:10px 14px;
+  z-index:1800;
+  font-family:'Share Tech Mono',monospace;
+}
+#direction-hint .dh-row { display:flex; align-items:center; gap:12px; }
+#direction-hint .dh-arrow { font-size:44px; transition:transform .4s; flex-shrink:0; line-height:1; }
+#direction-hint .dh-info  { flex:1; }
+#direction-hint .dh-name  { font-size:15px; color:var(--amber); font-weight:600; }
+#direction-hint .dh-addr  { font-size:10px; color:var(--muted); margin-top:2px; }
+#direction-hint .dh-dist  { font-size:13px; color:var(--cyan); margin-top:3px; }
+#direction-hint .dh-score { font-size:26px; font-weight:bold; font-family:"Share Tech Mono",monospace; }
+#direction-hint .dh-close { cursor:pointer; color:var(--muted); font-size:16px; padding:4px; }
+
+/* ── SIDEBAR zone list ── */
+#zone-sidebar {
+  background:var(--surface);
+  border-top:1px solid var(--border);
+  max-height:32vh;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.sidebar-title {
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px; letter-spacing:1px; color:var(--muted);
+  padding:8px 12px 4px; text-transform:uppercase;
+  position:sticky; top:0; background:var(--surface); z-index:1;
+}
+.zone-item {
+  display:flex; align-items:center; gap:8px;
+  padding:7px 12px; border-bottom:1px solid #0e1d30;
+  cursor:pointer; transition:background .12s;
+}
+.zone-item:hover  { background:#111e30; }
+.zone-item.active { background:#0c1f38; border-left:2px solid var(--cyan); }
+.zone-dot   { width:9px; height:9px; border-radius:2px; flex-shrink:0; }
+.zone-name  { font-size:13px; flex:1; line-height:1.4; }
+.zone-sub   { font-size:11px; color:var(--muted); }
+.zone-score { font-family:'Share Tech Mono',monospace; font-size:15px; font-weight:bold; }
+
+/* fullscreen hides sidebar */
+body.map-fullscreen #zone-sidebar { display:none; }
+
+/* Legend */
+#legend.expanded #legend.expanded 
+/* Leaflet popup override */
+.leaflet-popup-content-wrapper{background:#0d1929;border:1px solid var(--border);border-radius:8px;color:var(--text);box-shadow:0 4px 20px rgba(0,0,0,.5);}
+.leaflet-popup-tip{background:#0d1929;}
+.leaflet-popup-content{margin:10px 12px;font-family:'Inter',sans-serif;font-size:12px;min-width:160px;}
+.popup-title{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan);margin-bottom:5px;}
+.popup-score{font-size:20px;font-weight:bold;margin-bottom:3px;}
+.popup-ev{font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:6px;}
+.popup-nav-btn{background:var(--cyan);color:#000;border:none;border-radius:4px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;width:100%;font-family:'Share Tech Mono',monospace;}
+.popup-nav-btn:hover{background:#00c8e0;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>📍 SOFIA TAXI DEMAND</h1>
+    <p>Реална карта · GPS навигация</p>
+  </div>
+  <div class="hdr-right">
+    <span id="airport-badge">✈ ЗАРЕЖДА…</span>
+    <div class="live-dot"></div>
+  </div>
+</div>
+
+<div class="timeline-panel">
+  <div class="tl-top">
+    <span class="tl-clock" id="time-display">16:00</span>
+    <span class="tl-sub"   id="tl-hint">—</span>
+    <span class="tl-dead"  id="tl-dead">⚠ МЪРТВА ЗОНА</span>
+  </div>
+  <canvas id="demand-canvas"></canvas>
+  <div class="tl-slider-wrap">
+    <input type="range" id="time-slider" min="6" max="24" value="16" step="0.5">
+  </div>
+  <div class="tl-ticks">
+    <span>6</span><span>8</span><span>10</span><span>12</span><span>14</span>
+    <span>16</span><span>18</span><span>20</span><span>22</span><span>24</span>
+  </div>
+</div>
+
+<div class="ticker-bar"><div class="ticker-wrap" id="ticker"></div></div>
+
+<div id="map"></div>
+
+<!-- Zone sidebar list -->
+<div id="zone-sidebar">
+  <div class="sidebar-title">▣ Зони по приоритет</div>
+  <div id="zone-list"></div>
+</div>
+
+<!-- Direction hint (auto arrow to nearest worthy zone) -->
+<div id="direction-hint">
+  <div class="dh-row">
+    <div class="dh-arrow" id="dh-arrow">➡️</div>
+    <div class="dh-info">
+      <div class="dh-name"  id="dh-name">—</div>
+      <div class="dh-addr"  id="dh-addr">—</div>
+      <div class="dh-dist"  id="dh-dist">—</div>
+    </div>
+    <div class="dh-score" id="dh-score">—</div>
+    <span class="dh-close" onclick="closeDirHint()">✕</span>
+  </div>
+</div>
+<button id="gps-btn" title="GPS локация">📍</button>
+<button id="fs-btn"  title="Fullscreen карта">⛶</button>
+
+  <div class="leg"><div class="leg-sq" style="background:#f97316"></div>Висок</div>
+  <div class="leg"><div class="leg-sq" style="background:#f59e0b"></div>Среден</div>
+  <div class="leg"><div class="leg-sq" style="background:#22c55e"></div>Нормален</div>
+  <div class="leg"><div class="leg-sq" style="background:#a855f7"></div>🚦 Обр.посока</div>
+  <div class="leg"><div class="leg-sq" style="background:#1a3050;border:1px solid #2a4870"></div>Тих</div>
+</div>
+
+<!-- Navigation bottom sheet -->
+<div id="nav-panel">
+  <div class="nav-row">
+    <div>
+      <div class="nav-title">🧭 НАВИГАЦИЯ КЪМ</div>
+      <div class="nav-target" id="nav-target">—</div>
+      <div class="nav-distance" id="nav-dist">—</div>
+    </div>
+    <div class="nav-score" id="nav-score" style="margin-left:12px">—</div>
+    <span class="nav-close" onclick="closeNav()">✕</span>
+  </div>
+  <div class="nav-row">
+    <div id="nav-compass" style="font-size:32px">⬆️</div>
+    <div class="nav-hint" id="nav-hint">Изчакване на GPS…</div>
+  </div>
+</div>
+
+<script src="leaflet.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+if (typeof L === 'undefined') {
+  document.getElementById('map').innerHTML = '<div style="color:#ef4444;font-family:monospace;padding:20px">Leaflet не се зареди. Моля отвори файла в браузър (не в Claude).</div>';
+  return;
+}
+// ═══════════════════════════════════════════════
+// ZONE DEFINITIONS — верифицирани GPS координати
+// wazeName = точното търсене в Waze по обект/адрес
+// ═══════════════════════════════════════════════
+const ZONES = [
+  // ── ЛЕТИЩЕ ──
+  { id:"airport",       name:"Летище София (СОФ)",                    icon:"✈️",  lat:42.6950, lng:23.4083, radius:600, type:"airport",          wazeName:"Летище София" },
+
+  // ── ОФИСИ КЛАС А ──
+  { id:"bpark",         name:"Business Park Sofia",                   icon:"🏢", lat:42.6292, lng:23.3731, radius:380, type:"office",           wazeName:"Business Park Sofia" },
+  { id:"garitage",      name:"Garitage Park офиси",                   icon:"🏢", lat:42.6227, lng:23.3735, radius:320, type:"office",           wazeName:"Garitage Park Sofia" },
+  { id:"polygraphia",   name:"Polygraphia Office Center",             icon:"🏢", lat:42.6700, lng:23.3820, radius:260, type:"office",           wazeName:"Polygraphia Office Center Sofia" },
+  { id:"capital_fort",  name:"Capital Fort",                          icon:"🏢", lat:42.6464, lng:23.3958, radius:230, type:"office",           wazeName:"Capital Fort Sofia" },
+  { id:"megapark",      name:"Megapark (до The Mall)",                icon:"🏢", lat:42.6600, lng:23.3840, radius:260, type:"office",           wazeName:"Megapark Sofia" },
+  { id:"advance_bc",    name:"Advance Business Center I+II",          icon:"🏢", lat:42.6290, lng:23.3720, radius:230, type:"office",           wazeName:"Advance Business Center Sofia" },
+  { id:"bulgaria_towers",name:"Bulgaria Towers",                      icon:"🏢", lat:42.6641, lng:23.2885, radius:220, type:"office",           wazeName:"Bulgaria Towers Sofia" },
+  { id:"park_lane",     name:"Park Lane Office (НПЗ Хладилника)",     icon:"🏢", lat:42.6580, lng:23.3420, radius:200, type:"office",           wazeName:"Park Lane Office Center Sofia" },
+  { id:"expo2000",      name:"Expo 2000 / Ellipse Center",            icon:"🏢", lat:42.6535, lng:23.3958, radius:280, type:"office",           wazeName:"Expo 2000 Sofia" },
+  { id:"sofia_tower",   name:"Sofia Tower I+II",                      icon:"🏢", lat:42.6981, lng:23.3086, radius:180, type:"office",           wazeName:"Sofia Tower Mall of Sofia" },
+  { id:"iec",           name:"IEC / Интер Експо Център",              icon:"🏢", lat:42.6710, lng:23.4020, radius:280, type:"office",           wazeName:"Inter Expo Center Sofia" },
+  { id:"office_iztok",  name:"Офис зона Изток / Докторски",           icon:"🏢", lat:42.6762, lng:23.3620, radius:280, type:"office",           wazeName:"Докторски паметник София" },
+  { id:"office_center", name:"Офис Център (пл.Патриарх Евтимий)",    icon:"🏢", lat:42.6883, lng:23.3285, radius:230, type:"office",           wazeName:"площад Патриарх Евтимий София" },
+  { id:"sky_fort",      name:"Sky Fort (Цариградско шосе)",           icon:"🏢", lat:42.6460, lng:23.3975, radius:200, type:"office",           wazeName:"Sky Fort Sofia" },
+
+  // ── МОЛОВЕ ──
+  { id:"serdika",       name:"Мол Сердика",                           icon:"🛍", lat:42.6920, lng:23.3540, radius:240, type:"mall",             wazeName:"Serdika Center Sofia" },
+  { id:"paradise",      name:"Paradise Center",                       icon:"🛍", lat:42.6578, lng:23.3144, radius:290, type:"mall",             wazeName:"Paradise Center Sofia" },
+  { id:"mall_sofia",    name:"Mall of Sofia",                         icon:"🛍", lat:42.6981, lng:23.3086, radius:210, type:"mall",             wazeName:"Mall of Sofia" },
+  { id:"ring_mall",     name:"Ring Mall / IKEA",                      icon:"🛍", lat:42.6246, lng:23.3519, radius:340, type:"mall",             wazeName:"Ring Mall Sofia" },
+  { id:"the_mall",      name:"The Mall Sofia",                        icon:"🛍", lat:42.6605, lng:23.3822, radius:290, type:"mall",             wazeName:"The Mall Sofia" },
+  { id:"bulgaria_mall", name:"България Мол",                         icon:"🛍", lat:42.6641, lng:23.2885, radius:240, type:"mall",             wazeName:"Bulgaria Mall Sofia" },
+  { id:"park_center",   name:"Park Center (до НДК)",                  icon:"🛍", lat:42.6786, lng:23.3206, radius:190, type:"mall",             wazeName:"Park Center Sofia" },
+
+  // ── ХОТЕЛИ ──
+  { id:"hotels_ctr",    name:"Хотели Център (Radisson/Hilton)",       icon:"🏨", lat:42.6953, lng:23.3242, radius:280, type:"hotel",            wazeName:"Radisson Blu Sofia" },
+  { id:"hotels_ndk",    name:"Kempinski / InterContinental НДК",      icon:"🏨", lat:42.6855, lng:23.3188, radius:180, type:"hotel",            wazeName:"Kempinski Hotel Zografski Sofia" },
+  { id:"hotel_marinela",name:"Хотел Маринела",                        icon:"🏨", lat:42.6690, lng:23.3175, radius:160, type:"hotel",            wazeName:"Hotel Marinela Sofia" },
+
+  // ── ТРАНЗИТ ──
+  { id:"cjp",           name:"Централна ЖП гара",                     icon:"🚂", lat:42.7121, lng:23.3210, radius:240, type:"transit",          wazeName:"Централна жп гара София" },
+  { id:"cab_north",     name:"Централна автогара",                    icon:"🚌", lat:42.7103, lng:23.3233, radius:200, type:"transit",          wazeName:"Централна автогара София" },
+  { id:"ag_yug",        name:"Автогара Юг",                           icon:"🚌", lat:42.6760, lng:23.3095, radius:190, type:"transit",          wazeName:"Автогара Юг София" },
+  { id:"ag_pod",        name:"Автогара Подуяне",                      icon:"🚌", lat:42.7015, lng:23.3758, radius:190, type:"transit",          wazeName:"Автогара Подуяне София" },
+
+  // ── КОНЦЕРТИ / VENUES ──
+  { id:"arena",         name:"Арена 8888",                            icon:"🎸", lat:42.6711, lng:23.3692, radius:290, type:"venue",            wazeName:"Arena Sofia 8888" },
+  { id:"ndk",           name:"НДК",                                   icon:"🎭", lat:42.6855, lng:23.3188, radius:260, type:"venue",            wazeName:"Национален дворец на културата НДК" },
+  { id:"borisova",      name:"Борисова градина / Стадион Левски",     icon:"🌳", lat:42.6838, lng:23.3450, radius:340, type:"leisure",          wazeName:"Борисова градина София" },
+  { id:"lozenets_wt",   name:"Водна кула / Лозенец",                  icon:"🎨", lat:42.6713, lng:23.3382, radius:260, type:"venue",            wazeName:"Водна кула Лозенец Sofia" },
+  { id:"vasil_levski",  name:"Национален стадион Васил Левски",       icon:"⚽", lat:42.6966, lng:23.3448, radius:280, type:"venue",            wazeName:"Национален стадион Васил Левски" },
+
+  // ── БОЛНИЦИ ──
+  // Пирогов е на бул.Тотлебен 21 — не е при Докторски!
+  { id:"pirogov",       name:"УМБАЛ Пирогов (бул.Тотлебен 21)",       icon:"🏥", lat:42.6933, lng:23.3177, radius:190, type:"hospital",         wazeName:"УМБАЛСМ Пирогов бул Тотлебен 21 София" },
+  { id:"alexand",       name:"Александровска болница",                icon:"🏥", lat:42.6864, lng:23.3089, radius:190, type:"hospital",         wazeName:"УМБАЛ Александровска болница София" },
+  { id:"vma",           name:"ВМА (Военномедицинска академия)",        icon:"🏥", lat:42.6860, lng:23.3330, radius:170, type:"hospital",         wazeName:"ВМА Военномедицинска академия София" },
+  { id:"tokuda",        name:"Токуда болница",                        icon:"🏥", lat:42.6567, lng:23.3373, radius:160, type:"hospital",         wazeName:"Токуда болница София" },
+
+  // ── УНИВЕРСИТЕТИ ──
+  { id:"unss",          name:"УНСС",                                  icon:"🎓", lat:42.6796, lng:23.3127, radius:240, type:"university",       wazeName:"УНСС София" },
+  { id:"nbu",           name:"НБУ",                                   icon:"🎓", lat:42.6558, lng:23.2891, radius:190, type:"university",       wazeName:"Нов Български Университет НБУ" },
+  { id:"tu",            name:"Технически университет",               icon:"🎓", lat:42.6569, lng:23.3532, radius:210, type:"university",       wazeName:"Технически университет София" },
+  { id:"su",            name:"Софийски университет",                 icon:"🎓", lat:42.6943, lng:23.3318, radius:200, type:"university",       wazeName:"Софийски университет Св Климент Охридски" },
+
+  // ── ЛУКСОЗНИ ЖИЛИЩА ──
+  // Hill Side = бул.Симеоновско шосе 97К — СЕГА ПРАВИЛНО!
+  { id:"simenovo",      name:"Симеоново / Hill Side (Симеоновско шосе 97К)", icon:"🌲", lat:42.6395, lng:23.3310, radius:380, type:"residential_lux", wazeName:"Hill Side Sofia Симеоновско шосе 97" },
+  { id:"manast",        name:"Манастирски ливади (луксозни жк)",      icon:"🏘", lat:42.6671, lng:23.3155, radius:380, type:"residential_lux", wazeName:"Манастирски ливади София" },
+  { id:"boyana",        name:"Бояна / Драгалевци",                    icon:"🌳", lat:42.6348, lng:23.2889, radius:430, type:"residential_lux", wazeName:"Бояна квартал София" },
+  { id:"vitosha_vz",    name:"в.з. Симеоново / Камбаните",            icon:"⛰️",  lat:42.6246, lng:23.3400, radius:350, type:"residential_lux", wazeName:"вилна зона Камбаните Симеоново Sofia" },
+
+  // ── ЗАПАД ──
+  { id:"lyulin",        name:"жк Люлин",                              icon:"🏘", lat:42.7050, lng:23.2650, radius:400, type:"residential",      wazeName:"жк Люлин Sofia Bulgaria" },
+  { id:"nadejda",       name:"жк Надежда",                            icon:"🏘", lat:42.7200, lng:23.2900, radius:350, type:"residential",      wazeName:"жк Надежда Sofia Bulgaria" },
+  { id:"obelya",        name:"Обеля",                                 icon:"🏘", lat:42.7300, lng:23.2700, radius:300, type:"residential",      wazeName:"кв Обеля Sofia Bulgaria" },
+  { id:"ovcha_kupel",   name:"Овча купел",                            icon:"🏘", lat:42.6680, lng:23.2720, radius:300, type:"residential",      wazeName:"жк Овча купел Sofia Bulgaria" },
+
+  // ── СЕВЕР ──
+  { id:"banishora",     name:"Банишора / Фондови жилища",             icon:"🏘", lat:42.7180, lng:23.3180, radius:280, type:"residential",      wazeName:"кв Банишора Sofia Bulgaria" },
+  { id:"iliantsi",      name:"Илиянци / Северен парк",               icon:"🏭", lat:42.7380, lng:23.3050, radius:300, type:"residential",      wazeName:"Илиянци Sofia Bulgaria" },
+
+  // ── ИЗТОК / ДРУЖБА ──
+  { id:"druzhba",       name:"Дружба 1+2 / Горубляне",               icon:"🏘", lat:42.6590, lng:23.4230, radius:380, type:"residential",      wazeName:"жк Дружба Sofia Bulgaria" },
+  { id:"musagenitsa",   name:"Мусагеница / Яворов",                   icon:"🏘", lat:42.6780, lng:23.3650, radius:280, type:"residential",      wazeName:"кв Мусагеница Sofia Bulgaria" },
+
+  // ── ДОПЪЛНИТЕЛНИ ОБЕКТИ ──
+  { id:"zoo",           name:"Зоологическа градина",                  icon:"🦁", lat:42.6730, lng:23.3310, radius:200, type:"leisure",          wazeName:"Зоологическа градина Sofia Bulgaria" },
+  { id:"sofiamed",      name:"Болница Софиямед",                      icon:"🏥", lat:42.6567, lng:23.3420, radius:160, type:"hospital",         wazeName:"Болница Софиямед Sofia Bulgaria" },
+  { id:"isul",          name:"ИСУЛ болница",                          icon:"🏥", lat:42.6943, lng:23.3590, radius:160, type:"hospital",         wazeName:"ИСУЛ болница Sofia Bulgaria" },
+  { id:"sopharma_bc",   name:"Sopharma Business Center",              icon:"🏢", lat:42.7000, lng:23.3290, radius:200, type:"office",           wazeName:"Sopharma Business Center Sofia" },
+  { id:"telus",         name:"Telus Tower / пл.Македония",            icon:"🏢", lat:42.6947, lng:23.3154, radius:180, type:"office",           wazeName:"Telus Tower Macedonia Square Sofia" },
+  { id:"millennium",    name:"Millennium Center (бул.Витоша)",        icon:"🏢", lat:42.6822, lng:23.3147, radius:200, type:"office",           wazeName:"Millennium Center Sofia" },
+  { id:"oval",          name:"Oval Business Center (Лозенец)",        icon:"🏢", lat:42.6640, lng:23.3340, radius:180, type:"office",           wazeName:"Oval Business Center Sofia" },
+  { id:"nvu",           name:"НВУ / Военна академия",                 icon:"🎓", lat:42.6895, lng:23.3625, radius:180, type:"university",       wazeName:"Военна академия Г Раковски Sofia Bulgaria" },
+  { id:"grand_arena",   name:"Grand Arena (кино / entertainment)",    icon:"🎬", lat:42.6246, lng:23.3519, radius:200, type:"leisure",          wazeName:"Grand Arena Cinema Sofia Bulgaria" },
+
+  // ── ТЕАТРИ ──
+  { id:"nat_theatre",   name:"Народен театър Иван Вазов",             icon:"🎭", lat:42.6951, lng:23.3297, radius:180, type:"theatre",          wazeName:"Народен театър Иван Вазов София" },
+  { id:"theatre_199",   name:"Театър 199 (бул.Евлоги Георгиев 199)",  icon:"🎭", lat:42.6896, lng:23.3596, radius:150, type:"theatre",          wazeName:"Театър 199 София" },
+  { id:"youth_theatre", name:"Младежки театър (бул.Дондуков 8)",       icon:"🎭", lat:42.6985, lng:23.3254, radius:150, type:"theatre",          wazeName:"Младежки театър Николай Бинев София" },
+  { id:"satira",        name:"Театър Сатирикон (ул.Стефан Караджа 2)",icon:"🎭", lat:42.6945, lng:23.3285, radius:140, type:"theatre",          wazeName:"Театър Сатирикон София" },
+  { id:"opera",         name:"Национална опера и балет",               icon:"🎶", lat:42.6946, lng:23.3229, radius:180, type:"theatre",          wazeName:"Национална опера и балет София" },
+  { id:"theatre_sofia", name:"Театър София (бул.Янко Сакъзов 23А)",   icon:"🎭", lat:42.6889, lng:23.3498, radius:140, type:"theatre",          wazeName:"Театър София Янко Сакъзов" },
+  { id:"sfumato",       name:"Театър Сфумато",                        icon:"🎭", lat:42.6882, lng:23.3191, radius:120, type:"theatre",          wazeName:"Театър Сфумато София" },
+  { id:"cmart",         name:"City Mark Art Center",                   icon:"🎭", lat:42.6893, lng:23.3360, radius:130, type:"theatre",          wazeName:"City Mark Art Center Sofia" },
+
+  // ── КИНА ──
+  { id:"cinema_city_ml",name:"Cinema City Mall of Sofia",              icon:"🎬", lat:42.6981, lng:23.3086, radius:160, type:"cinema",           wazeName:"Cinema City Mall of Sofia" },
+  { id:"cinema_city_ser",name:"Cinema City Сердика",                  icon:"🎬", lat:42.6920, lng:23.3540, radius:160, type:"cinema",           wazeName:"Cinema City Serdika Center Sofia" },
+  { id:"cinema_arena",  name:"Кино Арена Grand Cinema (Ring Mall)",    icon:"🎬", lat:42.6246, lng:23.3519, radius:160, type:"cinema",           wazeName:"Кино Арена Grand Cinema Ring Mall Sofia" },
+  { id:"cineland",      name:"Cineland (Paradise Center)",             icon:"🎬", lat:42.6578, lng:23.3144, radius:150, type:"cinema",           wazeName:"Cineland Paradise Center Sofia" },
+  { id:"dom_kinoto",    name:"Дом на киното (ул.Екзарх Йосиф 37)",    icon:"🎬", lat:42.6978, lng:23.3331, radius:130, type:"cinema",           wazeName:"Дом на киното Екзарх Йосиф 37 София" },
+  { id:"odeon",         name:"Кино Одеон (ул.Екзарх Йосиф 1)",        icon:"🎬", lat:42.6957, lng:23.3352, radius:120, type:"cinema",           wazeName:"Кино Одеон Екзарх Йосиф София" },
+  { id:"vlaykova",      name:"Кино Влайкова (ул.Г.Делчев 24)",        icon:"🎬", lat:42.6912, lng:23.3291, radius:120, type:"cinema",           wazeName:"Кино Влайкова Гоце Делчев Sofia" },
+
+  // ── РЕСТОРАНТИ / НОЩЕН ЖИВОТ ──
+  { id:"vitosha_bar",   name:"Бар/ресторант зона бул.Витоша",         icon:"🍷", lat:42.6890, lng:23.3220, radius:250, type:"nightlife",        wazeName:"булевард Витоша ресторанти София" },
+  { id:"lozenets_rest", name:"Ресторанти Лозенец (Водна кула)",        icon:"🍽", lat:42.6713, lng:23.3382, radius:220, type:"nightlife",        wazeName:"ресторанти Лозенец Водна кула София" },
+  { id:"center_bars",   name:"Барове / клубове Център (ул.Раковски)", icon:"🍺", lat:42.6960, lng:23.3310, radius:200, type:"nightlife",        wazeName:"Раковски барове клубове Sofia" },
+  { id:"studentski_bar",name:"Студентски град – барове/нощен живот",  icon:"🍺", lat:42.6480, lng:23.3580, radius:220, type:"nightlife",        wazeName:"Студентски град барове Sofia" },
+  { id:"studentski_main",name:"Студентски град (транзит към Центъра)", icon:"🎓", lat:42.6490, lng:23.3600, radius:380, type:"university",       wazeName:"Студентски град Sofia" },
+  { id:"iztok_rest",    name:"Ресторанти Изток (Докторски паметник)", icon:"🍽", lat:42.6762, lng:23.3620, radius:180, type:"nightlife",        wazeName:"ресторанти Докторски паметник Изток Sofia" },
+
+  // ── ЗАДРЪСТВАНИЯ (трафик зони — само индикатор, не demand) ──
+  { id:"jam_orl",       name:"⚠ Задръстване Орлов мост",              icon:"🚦", lat:42.6838, lng:23.3345, radius:150, type:"traffic",          wazeName:"Орлов мост София" },
+  { id:"jam_tsar",      name:"⚠ Задръстване Цариградско (Армейски)",  icon:"🚦", lat:42.6662, lng:23.3795, radius:200, type:"traffic",          wazeName:"Цариградско шосе Армейски кръстовище Sofia" },
+  { id:"jam_ndk",       name:"⚠ Задръстване пл.България / НДК",       icon:"🚦", lat:42.6855, lng:23.3188, radius:160, type:"traffic",          wazeName:"площад България НДК Sofia" },
+  { id:"jam_serdika",   name:"⚠ Задръстване Сердика / бул.Сливница", icon:"🚦", lat:42.7012, lng:23.3228, radius:160, type:"traffic",          wazeName:"Сердика бул Сливница Sofia" },
+];
+
+// ═══════════════════════════════════════════════
+// BASE DEMAND
+// ═══════════════════════════════════════════════
+const BASE = {
+  airport:1.4,
+  bpark:0.5, garitage:0.4, polygraphia:0.4, capital_fort:0.4, megapark:0.4,
+  advance_bc:0.4, bulgaria_towers:0.4, park_lane:0.4, expo2000:0.4,
+  sofia_tower:0.4, iec:0.4, office_iztok:0.5, office_center:0.6, sky_fort:0.4,
+  serdika:0.8, paradise:0.7, mall_sofia:0.6, ring_mall:0.6, the_mall:0.6,
+  bulgaria_mall:0.6, park_center:0.5,
+  hotels_ctr:0.9, hotels_ndk:0.7, hotel_marinela:0.6,
+  cjp:0.9, cab_north:0.8, ag_yug:0.7, ag_pod:0.5,
+  arena:0.3, ndk:0.7, borisova:0.3, lozenets_wt:0.4, vasil_levski:0.3,
+  pirogov:0.8, alexand:0.7, vma:0.6, tokuda:0.5, sofiamed:0.5, isul:0.6,
+  unss:0.5, nbu:0.4, tu:0.4, su:0.5, nvu:0.3,
+  simenovo:0.4, manast:0.5, boyana:0.4, vitosha_vz:0.3,
+  lyulin:0.5, nadejda:0.4, obelya:0.3, ovcha_kupel:0.4,
+  banishora:0.4, iliantsi:0.3, druzhba:0.4, musagenitsa:0.4,
+  zoo:0.4, sopharma_bc:0.4, telus:0.5, millennium:0.4, oval:0.4,
+  grand_arena:0.3,
+  // Театри
+  nat_theatre:0.3, theatre_199:0.3, youth_theatre:0.3, satira:0.2,
+  opera:0.3, theatre_sofia:0.2, sfumato:0.2, cmart:0.2,
+  // Кина
+  cinema_city_ml:0.3, cinema_city_ser:0.3, cinema_arena:0.3,
+  cineland:0.3, dom_kinoto:0.3, odeon:0.2, vlaykova:0.2,
+  // Нощен живот
+  vitosha_bar:0.6, lozenets_rest:0.5, center_bars:0.5,
+  studentski_bar:0.4, studentski_main:0.6, iztok_rest:0.4,
+  // Трафик (базов 0 — само при пик часове)
+  jam_orl:0, jam_tsar:0, jam_ndk:0, jam_serdika:0,
+};
+
+// ═══════════════════════════════════════════════
+// EVENTS
+// ═══════════════════════════════════════════════
+const EVENTS = [
+  // ── ЛЕТИЩЕ (инжектирани от JSON) ──
+
+  // ── ОФИСИ — пик 16:30-18:00 ──
+  { zone:"polygraphia", name:"Polygraphia – изход (3000+ служители)", endHour:17.5, boost:3.0, repeat:"mon-fri" },
+  { zone:"capital_fort",name:"Capital Fort – изход",                   endHour:17.5, boost:2.8, repeat:"mon-fri" },
+  { zone:"megapark",    name:"Megapark – изход",                       endHour:17.5, boost:2.5, repeat:"mon-fri" },
+  { zone:"bpark",       name:"Business Park Sofia – изход",            endHour:17.5, boost:3.0, repeat:"mon-fri" },
+  { zone:"garitage",    name:"Garitage Park – изход",                  endHour:17,   boost:2.8, repeat:"mon-fri" },
+  { zone:"advance_bc",  name:"Advance Business Center – изход",        endHour:17.5, boost:2.5, repeat:"mon-fri" },
+  { zone:"bulgaria_towers",name:"Bulgaria Towers – изход",             endHour:17.5, boost:2.2, repeat:"mon-fri" },
+  { zone:"park_lane",   name:"Park Lane Office – изход",               endHour:17,   boost:2.0, repeat:"mon-fri" },
+  { zone:"expo2000",    name:"Expo 2000 / Ellipse – изход",            endHour:17.5, boost:2.5, repeat:"mon-fri" },
+  { zone:"sofia_tower", name:"Sofia Tower – изход",                    endHour:17.5, boost:2.0, repeat:"mon-fri" },
+  { zone:"iec",         name:"IEC Sofia – изход / конференции",        endHour:18,   boost:2.2, repeat:"mon-fri" },
+  { zone:"office_iztok",name:"Офис зона Изток – изход",               endHour:17.5, boost:2.0, repeat:"mon-fri" },
+  { zone:"office_center",name:"Офис Център – изход",                  endHour:17,   boost:2.2, repeat:"mon-fri" },
+  // Закъснели (до 18:30, после спира)
+  { zone:"bpark",       name:"Business Park – закъснели",              endHour:18.5, boost:0.8, repeat:"mon-fri" },
+  { zone:"polygraphia", name:"Polygraphia – закъснели",                endHour:18.5, boost:0.8, repeat:"mon-fri" },
+  { zone:"garitage",    name:"Garitage Park – закъснели",              endHour:18.5, boost:0.7, repeat:"mon-fri" },
+
+  // ── МОЛОВЕ – 2 вълни ──
+  { zone:"serdika",   name:"Мол Сердика – следобед",       endHour:17.5, boost:1.6, repeat:"daily" },
+  { zone:"paradise",  name:"Paradise – следобед",           endHour:17,   boost:1.5, repeat:"daily" },
+  { zone:"ring_mall", name:"Ring Mall/IKEA – следобед",    endHour:17.5, boost:1.5, repeat:"daily" },
+  { zone:"the_mall",  name:"The Mall – следобед",          endHour:17,   boost:1.5, repeat:"daily" },
+  { zone:"mall_sofia",name:"Mall of Sofia – следобед",     endHour:17,   boost:1.4, repeat:"daily" },
+  { zone:"markovo",   name:"Мол Маркова Tепе – следобед",  endHour:17,   boost:1.3, repeat:"daily" },
+  // Вечерно затваряне
+  { zone:"serdika",   name:"Мол Сердика – затваряне",      endHour:21,   boost:2.0, repeat:"daily" },
+  { zone:"paradise",  name:"Paradise – затваряне",          endHour:21.5, boost:2.2, repeat:"daily" },
+  { zone:"ring_mall", name:"Ring Mall – затваряне",        endHour:21,   boost:1.8, repeat:"daily" },
+  { zone:"the_mall",  name:"The Mall – затваряне",         endHour:21,   boost:2.0, repeat:"daily" },
+  { zone:"mall_sofia",name:"Mall of Sofia – затваряне",    endHour:21,   boost:1.8, repeat:"daily" },
+  { zone:"markovo",   name:"Маркова Tепе – затваряне",     endHour:21,   boost:1.6, repeat:"daily" },
+
+  // ── ХОТЕЛИ ──
+  { zone:"hotels_ctr", name:"Late checkout / трансфери",       endHour:13,   boost:1.8, repeat:"daily" },
+  { zone:"hotels_ctr", name:"Check-in wave",                   endHour:16,   boost:1.5, repeat:"daily" },
+  { zone:"hotels_ctr", name:"Бизнес вечеря",                   endHour:21.5, boost:1.6, repeat:"mon-fri" },
+  { zone:"hotels_ctr", name:"Уикенд бар",                      endHour:23,   boost:1.8, repeat:"fri-sat" },
+  { zone:"hotels_ndk", name:"Kempinski / хотели НДК – вечер",  endHour:22,   boost:1.5, repeat:"daily" },
+
+  // ── КОНЦЕРТИ ──
+  { zone:"arena", name:"SCORPIONS – Coming Home 60г.",          endHour:22.5, boost:3.5, date:"2026-06-27" },
+  { zone:"ndk",   name:"Вагнеров фестивал",                     endHour:22,   boost:2.5, repeat:"daily", endDate:"2026-06-14" },
+  { zone:"ndk",   name:"Театър 199",                            endHour:22,   boost:2.0, repeat:"thu-sat" },
+  { zone:"ndk",   name:"НДК – концерт",                         endHour:22,   boost:2.2, repeat:"fri-sat" },
+  { zone:"borisova",name:"Стадион – мач",                       endHour:21.5, boost:2.5, repeat:"fri-sat" },
+  { zone:"borisova",name:"Летно кино",                          endHour:23,   boost:2.0, repeat:"fri-sat" },
+  { zone:"lozenets",name:"Water Tower Art Fest",                endHour:21,   boost:1.4, repeat:"daily", endDate:"2026-06-30" },
+
+  // ── ТРАНЗИТ ──
+  { zone:"cjp",    name:"Влак София–Варна",         endHour:18.5, boost:2.2, repeat:"daily" },
+  { zone:"cjp",    name:"Влак София–Пловдив",       endHour:20,   boost:1.8, repeat:"daily" },
+  { zone:"cjp",    name:"IC нощен",                 endHour:21,   boost:1.5, repeat:"daily" },
+  { zone:"ag_yug", name:"Автобуси Пловдив",         endHour:19.5, boost:2.0, repeat:"daily" },
+  { zone:"ag_yug", name:"Нощни автобуси",           endHour:22,   boost:1.5, repeat:"daily" },
+  { zone:"ag_pod", name:"Автогара Подуяне",         endHour:18,   boost:1.6, repeat:"daily" },
+
+  // ── БОЛНИЦИ ──
+  { zone:"pirogov",  name:"Пирогов – смяна",        endHour:8.5,  boost:1.8, repeat:"daily" },
+  { zone:"pirogov",  name:"Пирогов – вечерни",      endHour:19,   boost:1.6, repeat:"daily" },
+  { zone:"alexand",  name:"Александровска – дневни", endHour:14,   boost:1.5, repeat:"daily" },
+  { zone:"vma",      name:"ВМА – смяна",             endHour:14,   boost:1.4, repeat:"daily" },
+
+  // ── УНИВЕРСИТЕТИ ──
+  { zone:"unss",   name:"УНСС – края на лекции",    endHour:13.5, boost:2.0, repeat:"mon-fri" },
+  { zone:"unss",   name:"УНСС – вечерни",           endHour:18,   boost:1.8, repeat:"mon-fri" },
+  { zone:"nbu",    name:"НБУ – следобед",           endHour:17.5, boost:1.8, repeat:"mon-fri" },
+  { zone:"tu",     name:"ТУ – следобед",            endHour:17.5, boost:1.6, repeat:"mon-fri" },
+
+  // ── ЛУКСОЗНИ ЖИЛИЩА (сутрин) ──
+  { zone:"manast",   name:"Ман.ливади – тръгване",  endHour:8.5,  boost:2.0, repeat:"mon-fri" },
+  { zone:"simenovo", name:"Симеоново – тръгване",   endHour:8,    boost:1.8, repeat:"mon-fri" },
+  { zone:"boyana",   name:"Бояна – тръгване",       endHour:8.5,  boost:1.6, repeat:"mon-fri" },
+  // Прибиране вечер (само уикенд – делнични са вкъщи преди 20ч)
+  { zone:"manast",   name:"Ман.ливади – прибиране", endHour:22.5, boost:1.6, repeat:"fri-sat" },
+  { zone:"simenovo", name:"Симеоново – прибиране",  endHour:23,   boost:1.8, repeat:"fri-sat" },
+  { zone:"boyana",   name:"Бояна – прибиране",      endHour:22.5, boost:1.5, repeat:"fri-sat" },
+
+  // ══ ТЕАТРИ — край на спектакъл (типично 21:30–22:30) ══
+  // Делнични: 19:00 начало → 21:30 край; уикенд: 19:30 → 22:00
+  { zone:"nat_theatre",   name:"Народен театър – край на спектакъл",   endHour:21.5, boost:2.5, repeat:"tue-sat" },
+  { zone:"nat_theatre",   name:"Народен театър – матине",              endHour:13,   boost:1.5, repeat:"sat" },
+  { zone:"theatre_199",   name:"Театър 199 – край на спектакъл",       endHour:22,   boost:2.2, repeat:"thu-sat" },
+  { zone:"youth_theatre", name:"Младежки театър – край",               endHour:21.5, boost:2.0, repeat:"tue-sat" },
+  { zone:"satira",        name:"Театър Сатирикон – край",              endHour:22,   boost:1.8, repeat:"thu-sat" },
+  { zone:"opera",         name:"Опера / Балет – край",                 endHour:22,   boost:2.5, repeat:"tue-sun" },
+  { zone:"opera",         name:"Опера – матине",                       endHour:13,   boost:1.8, repeat:"sat" },
+  { zone:"theatre_sofia", name:"Театър София – край",                  endHour:21.5, boost:1.8, repeat:"wed-sat" },
+  { zone:"sfumato",       name:"Сфумато – край на спектакъл",          endHour:22,   boost:1.6, repeat:"thu-sat" },
+  { zone:"cmart",         name:"City Mark Art Center – край",          endHour:21.5, boost:1.8, repeat:"thu-sat" },
+
+  // ══ КИНА — края на последна вечерна прожекция ══
+  // Типично: 20:00 начало + ~2ч филм = 22:00–22:30 край
+  { zone:"cinema_city_ml",  name:"Cinema City Mall of Sofia – последна прожекция", endHour:22.5, boost:2.0, repeat:"daily" },
+  { zone:"cinema_city_ser", name:"Cinema City Сердика – последна прожекция",       endHour:22.5, boost:2.0, repeat:"daily" },
+  { zone:"cinema_arena",    name:"Кино Арена Ring Mall – последна прожекция",      endHour:22.5, boost:1.8, repeat:"daily" },
+  { zone:"cineland",        name:"Cineland Paradise – последна прожекция",         endHour:22.5, boost:1.8, repeat:"daily" },
+  { zone:"dom_kinoto",      name:"Дом на киното – последна прожекция",             endHour:22,   boost:1.5, repeat:"daily" },
+  { zone:"odeon",           name:"Кино Одеон – последна прожекция",               endHour:22,   boost:1.4, repeat:"daily" },
+  { zone:"vlaykova",        name:"Кино Влайкова – последна прожекция",            endHour:21.5, boost:1.4, repeat:"daily" },
+  // Следобедни прожекции (~17:30–18:00 край)
+  { zone:"cinema_city_ml",  name:"Cinema City – следобедна прожекция",            endHour:17.5, boost:1.2, repeat:"daily" },
+  { zone:"cinema_city_ser", name:"Cinema City Сердика – следобед",                endHour:17.5, boost:1.2, repeat:"daily" },
+
+  // ══ РЕСТОРАНТИ / НОЩЕН ЖИВОТ ══
+  // Пик 1: вечеря ~21:30 (хората тръгват след вечеря)
+  { zone:"vitosha_bar",    name:"Бул.Витоша – след вечеря",            endHour:22,   boost:2.2, repeat:"daily" },
+  { zone:"lozenets_rest",  name:"Лозенец ресторанти – след вечеря",    endHour:22,   boost:2.0, repeat:"daily" },
+  { zone:"center_bars",    name:"Центъра – барове след вечеря",        endHour:22,   boost:1.8, repeat:"daily" },
+  { zone:"iztok_rest",     name:"Изток ресторанти – след вечеря",      endHour:22,   boost:1.6, repeat:"daily" },
+  // Пик 2: след клуб (01:00–02:00) — само уикенд
+  { zone:"vitosha_bar",    name:"Бул.Витоша – след клуб/бар",          endHour:24,   boost:2.5, repeat:"fri-sat" },
+  { zone:"center_bars",    name:"Центъра – след клуб",                 endHour:24,   boost:2.2, repeat:"fri-sat" },
+  // Студентски – дневен транзит към гара/автогара (13-19ч)
+  { zone:"studentski_main", name:"Студентски – обяд (към Центъра/Гарата)", endHour:13.5, boost:2.2, repeat:"mon-fri" },
+  { zone:"studentski_main", name:"Студентски – следобед (към Центъра)",     endHour:16,   boost:2.5, repeat:"mon-fri" },
+  { zone:"studentski_main", name:"Студентски – вечер (към Гара/Автогара)",  endHour:19,   boost:2.8, repeat:"mon-fri" },
+  { zone:"studentski_main", name:"Студентски – уикенд (към Центъра)",       endHour:14,   boost:2.0, repeat:"fri-sat" },
+  { zone:"studentski_bar", name:"Студентски – след клуб",              endHour:24,   boost:2.0, repeat:"fri-sat" },
+  // Ранна вечеря (~19:30–20:00) — малък пик
+  { zone:"vitosha_bar",    name:"Бул.Витоша – ранна вечеря",           endHour:20,   boost:1.2, repeat:"daily" },
+  { zone:"lozenets_rest",  name:"Лозенец – ранна вечеря",              endHour:19.5, boost:1.1, repeat:"daily" },
+
+  // ══ ТРАФИК — задръствания (обратна посока = шанс!) ══
+  // Сутрин: 07:30–09:30 — всички към Центъра
+  { zone:"jam_orl",    name:"🚦 Задръстване СУТРИН – Орлов мост",      endHour:9,    boost:1.8, repeat:"mon-fri" },
+  { zone:"jam_tsar",   name:"🚦 Задръстване СУТРИН – Цариградско",     endHour:9,    boost:2.0, repeat:"mon-fri" },
+  { zone:"jam_ndk",    name:"🚦 Задръстване СУТРИН – НДК/България",    endHour:9,    boost:1.6, repeat:"mon-fri" },
+  { zone:"jam_serdika",name:"🚦 Задръстване СУТРИН – Сердика",         endHour:9,    boost:1.5, repeat:"mon-fri" },
+  // Следобед: 17:00–19:00 — всички от Центъра навън
+  { zone:"jam_orl",    name:"🚦 Задръстване СЛЕДОБЕД – Орлов мост",    endHour:19,   boost:2.2, repeat:"mon-fri" },
+  { zone:"jam_tsar",   name:"🚦 Задръстване СЛЕДОБЕД – Цариградско",   endHour:18.5, boost:2.5, repeat:"mon-fri" },
+  { zone:"jam_ndk",    name:"🚦 Задръстване СЛЕДОБЕД – НДК",           endHour:18.5, boost:2.0, repeat:"mon-fri" },
+  { zone:"jam_serdika",name:"🚦 Задръстване СЛЕДОБЕД – Сердика",       endHour:18.5, boost:1.8, repeat:"mon-fri" },
+];
+
+// ═══════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════
+function demandColor(score, type) {
+  // Traffic jam zones get special purple "reverse direction" color
+  if (type === 'traffic' && score >= 1.5)
+    return {fill:"#a855f7",fillAlpha:0.50,stroke:"#d08dff",label:"🚦 ОБР.ПОСОКА!"};
+  if (score>=3.2) return {fill:"#ef4444",fillAlpha:0.55,stroke:"#ff7777",label:"ПИК 🔥"};
+  if (score>=2.4) return {fill:"#f97316",fillAlpha:0.50,stroke:"#ffaa55",label:"Висок ▲"};
+  if (score>=1.6) return {fill:"#f59e0b",fillAlpha:0.45,stroke:"#ffd060",label:"Среден"};
+  if (score>=0.8) return {fill:"#22c55e",fillAlpha:0.35,stroke:"#55ee88",label:"Нормален"};
+  return {fill:"#1a3050",fillAlpha:0.30,stroke:"#2a4870",label:"Тих"};
+}
+
+const TODAY=new Date(), todayStr=TODAY.toISOString().slice(0,10), todayDay=TODAY.getDay();
+function dayMatches(ev) {
+  if(ev.date    && ev.date    !==todayStr)  return false;
+  if(ev.endDate && todayStr   > ev.endDate) return false;
+  if(ev.repeat==="daily")    return true;
+  if(ev.repeat==="mon-fri")  return todayDay>=1&&todayDay<=5;
+  if(ev.repeat==="thu-sat")  return [4,5,6].includes(todayDay);
+  if(ev.repeat==="fri-sat")  return [5,6].includes(todayDay);
+  if(ev.repeat==="tue-sat")  return todayDay>=2&&todayDay<=6;
+  if(ev.repeat==="tue-sun")  return todayDay>=2||todayDay===0;
+  if(ev.repeat==="wed-sat")  return todayDay>=3&&todayDay<=6;
+  if(ev.repeat==="sat")      return todayDay===6;
+  return true;
+}
+
+function deadZoneFactor(h) {
+  if(h>=20&&h<=21){const m=20.5;return 0.42+0.58*Math.pow(Math.abs(h-m)/0.5,2);}
+  return 1.0;
+}
+
+function computeScores(hour) {
+  const scores={}, activeEvents={};
+  ZONES.forEach(z=>{scores[z.id]=BASE[z.id]||0.5; activeEvents[z.id]=[];});
+  const dz=deadZoneFactor(hour);
+  for(const ev of EVENTS){
+    if(!dayMatches(ev)) continue;
+    const diff=hour-ev.endHour;
+    let f=0;
+    if(diff>=-0.75&&diff<=0) f=(diff+0.75)/0.75;
+    else if(diff>0&&diff<=1.5) f=1-diff/1.5;
+    if(f>0.05){
+      scores[ev.zone]=(scores[ev.zone]||0)+ev.boost*f*dz;
+      (activeEvents[ev.zone]=activeEvents[ev.zone]||[]).push({name:ev.name,f});
+    }
+  }
+  if(dz<1) ZONES.forEach(z=>{if(z.id!=='airport') scores[z.id]*=(0.7+0.3*dz);});
+  return{scores,activeEvents};
+}
+
+function totalDemand(hour) {
+  const{scores}=computeScores(hour);
+  return Object.values(scores).reduce((a,b)=>a+b,0);
+}
+
+function fmtHour(h){
+  return `${String(Math.floor(h)).padStart(2,'0')}:${h%1===0.5?'30':'00'}`;
+}
+
+function hexToRgba(hex,a){
+  const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+
+// ═══════════════════════════════════════════════
+// LEAFLET MAP
+// ═══════════════════════════════════════════════
+const map = L.map('map',{
+  center:[42.698,23.322], zoom:13,
+  zoomControl:true, attributionControl:false,
+});
+
+// CartoDB Dark Matter tiles — работят на GitHub Pages без блокиране
+const osmTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
+  maxZoom:19,
+  subdomains:['a','b','c','d'],
+  attribution:'© OpenStreetMap © CARTO',
+  errorTileUrl:'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+}).addTo(map);
+
+// CartoDB е вече тъмна карта — без допълнителен filter
+document.getElementById('map').style.filter='brightness(0.85) saturate(0.6)';
+
+// Critical: force size recalculation after layout settles
+setTimeout(()=>{ map.invalidateSize(); }, 100);
+setTimeout(()=>{ map.invalidateSize(); }, 500);
+
+// Circles for zones
+const circleMap={};
+let currentHour=16, selectedZoneId=null, navTarget=null;
+let userMarker=null, userLat=null, userLng=null, watchId=null;
+
+function getScoreColor(score, type){
+  const c=demandColor(score, type);
+  return{color:c.stroke, fillColor:c.fill, fillOpacity:c.fillAlpha, weight:1.5, opacity:0.85};
+}
+
+// ═══════════════════════════════════════════════
+// TRAFFIC JAM MARKERS
+// Подход: DIV икони на кръстовищата — голяма стрелка + текст
+// Без полилинии, без грешни координати
+// ═══════════════════════════════════════════════
+const TRAFFIC_INFO = {
+  jam_orl: {
+    // Орлов мост — сутрин задръстване КЪМ центъра (от изток)
+    // Таксито да се движи ОБРАТНО — от центъра навън
+    jamDir:'← КЪМ ЦЕНТЪРА',   // посока на задръстването
+    freeDir:'→ НАВЪН',          // свободна посока за такси
+    freeArrow:'→',
+    color:'#a855f7',
+    tip:'Задръстено КЪМ ЦЕНТЪРА. Ти върви → НАВЪН (свободно!)',
+    time:'07:30–09:30 и 17:00–19:00',
+  },
+  jam_tsar: {
+    // Цариградско — следобед задръстване НАВЪН (от центъра към летището)
+    jamDir:'→ КЪМ ЛЕТИЩЕТО',
+    freeDir:'← КЪМ ЦЕНТЪРА',
+    freeArrow:'←',
+    color:'#a855f7',
+    tip:'Задръстено → КЪМ ЛЕТИЩЕТО. Ти върви ← КЪМ ЦЕНТЪРА (свободно!)',
+    time:'07:00–09:00 и 17:00–19:30',
+  },
+  jam_ndk: {
+    // бул.Витоша / НДК — двупосочно задръстване
+    jamDir:'↑↓ ДВЕ ПОСОКИ',
+    freeDir:'↔ СТРАНИЧНИ УЛ.',
+    freeArrow:'↔',
+    color:'#a855f7',
+    tip:'Задръстено по бул.България. Използвай странични улици!',
+    time:'17:00–19:30 делнични',
+  },
+  jam_serdika: {
+    // Сердика / Сливница — изток→запад сутрин
+    jamDir:'← КЪМ ЗАПАДА',
+    freeDir:'→ КЪМ ИЗТОКА',
+    freeArrow:'→',
+    color:'#a855f7',
+    tip:'Задръстено ← КЪМ ЗАПАДА. Ти върви → КЪМ ИЗТОКА (свободно!)',
+    time:'07:30–09:30 делнични',
+  },
+};
+
+const trafficMarkers = {}; // id → L.marker (div icon)
+
+function makeTrafficIcon(info, active){
+  const opacity = active ? '1' : '0.35';
+  const glow    = active ? `0 0 8px ${info.color}` : 'none';
+  const size    = active ? 14 : 10;
+  return L.divIcon({
+    className:'',
+    html:`<div style="
+      width:${size}px;height:${size}px;border-radius:50%;
+      background:${info.color};
+      box-shadow:${glow};
+      opacity:${opacity};
+      ${active ? 'animation:jam-blink 2s ease-in-out infinite;' : ''}
+    "></div>`,
+    iconSize:[size,size], iconAnchor:[size/2,size/2],
+  });
+}
+
+function showZonePopup(zid){
+  const z=ZONES.find(x=>x.id===zid);
+  if(!z) return;
+  const{scores,activeEvents}=computeScores(currentHour);
+  const s=scores[zid]||0;
+  const c=demandColor(s, z.type);
+  const evs=(activeEvents[zid]||[]).slice(0,3);
+  const trafficInfo=TRAFFIC_INFO[zid];
+  const isJam=z.type==='traffic';
+
+  let evHtml;
+  if(isJam && trafficInfo){
+    const jamActive = s >= 1.5;
+    const statusColor = jamActive ? '#ef4444' : '#22c55e';
+    const statusText  = jamActive ? '🔴 ЗАДРЪСТЕНО СЕГА' : '🟢 В МОМЕНТА СВОБОДНО';
+    evHtml=`
+      <div style="background:${jamActive?'#1a0808':'#081a0d'};border:1px solid ${statusColor};border-radius:6px;padding:5px 8px;margin-bottom:6px;font-size:12px;color:${statusColor};font-weight:600">
+        ${statusText}
+      </div>
+      <div style="font-size:12px;color:#a855f7;margin-bottom:3px">🚦 ${trafficInfo.jamDir}</div>
+      <div style="font-size:12px;color:#00e5ff;margin-bottom:6px">✅ Свободно: ${trafficInfo.freeDir}</div>
+      ${jamActive ? `<div style="background:#1a0a2e;border:1px solid #a855f7;border-radius:6px;padding:6px 8px;font-size:12px;color:#d08dff;margin-bottom:4px">
+        💡 Карай ${trafficInfo.freeArrow} обратно — стигаш по-бързо!
+      </div>` : ''}
+      <div style="font-size:10px;color:#4a6080">⏰ Пик: ${trafficInfo.time}</div>`;
+  } else {
+    evHtml=evs.length
+      ? evs.map(e=>`<div>• ${e.name}</div>`).join('')
+      : '<div style="color:#4a6080">Базово търсене</div>';
+  }
+
+  const pct=Math.min(100,(s/4.5)*100);
+  L.popup({maxWidth:240,className:'dark-popup'})
+    .setLatLng([z.lat,z.lng])
+    .setContent(`
+      <div class="popup-title">${z.icon} ${z.name}</div>
+      <div class="popup-score" style="color:${c.fill}">${s.toFixed(1)} <span style="font-size:12px">${c.label}</span></div>
+      <div style="height:4px;background:#182d47;border-radius:2px;margin:6px 0">
+        <div style="width:${pct}%;height:100%;background:${c.fill};border-radius:2px"></div>
+      </div>
+      <div class="popup-ev">${evHtml}</div>
+      ${!isJam ? `
+      <button class="popup-nav-btn" onclick="startNav('${zid}')">🧭 Навигирай (in-app)</button>
+      <div style="display:flex;gap:6px;margin-top:6px;">
+        <a href="https://waze.com/ul?q=${encodeURIComponent(z.wazeName||z.name)}&navigate=yes" target="_blank"
+           style="flex:1;display:block;text-align:center;font-size:10px;color:#00e5ff;font-family:'Share Tech Mono',monospace;text-decoration:none;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;">
+          🚗 Waze ↗
+        </a>
+        <a href="https://www.google.com/maps?q=${z.lat},${z.lng}" target="_blank"
+           style="flex:1;display:block;text-align:center;font-size:10px;color:#4a6080;font-family:'Share Tech Mono',monospace;text-decoration:none;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;">
+          📍 Google ↗
+        </a>
+      </div>` : ''}
+    `).openOn(map);
+}
+
+function buildCircles(){
+  ZONES.forEach(z=>{
+    if(z.type==='traffic'){
+      const info=TRAFFIC_INFO[z.id];
+      if(info){
+        const marker=L.marker([z.lat,z.lng],{
+          icon:makeTrafficIcon(info, false),
+          zIndexOffset:600,
+        }).addTo(map);
+        marker.on('click',()=>showZonePopup(z.id));
+        trafficMarkers[z.id]=marker;
+        circleMap[z.id]=marker; // reuse circleMap slot
+      }
+      return;
+    }
+    const circle=L.circle([z.lat,z.lng],{radius:z.radius,...getScoreColor(BASE[z.id]||0.5, z.type)});
+    circle.on('click',()=>showZonePopup(z.id));
+    circle.addTo(map);
+    circleMap[z.id]=circle;
+  });
+}
+
+function updateCircles(){
+  const{scores}=computeScores(currentHour);
+  ZONES.forEach(z=>{
+    const s=scores[z.id]||0;
+    if(z.type==='traffic'){
+      const info=TRAFFIC_INFO[z.id];
+      const marker=trafficMarkers[z.id];
+      if(marker&&info) marker.setIcon(makeTrafficIcon(info, s>=1.5));
+      return;
+    }
+    const opts=getScoreColor(s, z.type);
+    circleMap[z.id]?.setStyle(opts);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// SPARKLINE
+// ═══════════════════════════════════════════════
+const canvas=document.getElementById('demand-canvas');
+const ctx=canvas.getContext('2d');
+const MIN_H=6,MAX_H=24,STEPS=72;
+let demandCurve=[];
+
+function buildCurve(){
+  demandCurve=[];
+  for(let i=0;i<=STEPS;i++) demandCurve.push(totalDemand(MIN_H+(i/STEPS)*(MAX_H-MIN_H)));
+}
+
+function drawSparkline(h){
+  const dpr=window.devicePixelRatio||1;
+  const W=Math.max(canvas.offsetWidth, canvas.parentElement?.offsetWidth||300);
+  const H=40;
+  canvas.style.width='100%';
+  canvas.width=W*dpr; canvas.height=H*dpr; ctx.scale(dpr,dpr);
+  const maxD=Math.max(...demandCurve),minD=Math.min(...demandCurve)*0.85;
+  const xOf=i=>(i/STEPS)*W;
+  const yOf=v=>H-3-((v-minD)/(maxD-minD))*(H-8);
+
+  // Dead zone
+  const x20=((20-MIN_H)/(MAX_H-MIN_H))*W;
+  const x21=((21-MIN_H)/(MAX_H-MIN_H))*W;
+  ctx.fillStyle='rgba(239,68,68,0.08)'; ctx.fillRect(x20,0,x21-x20,H);
+
+  // Fill
+  const grad=ctx.createLinearGradient(0,0,0,H);
+  grad.addColorStop(0,'rgba(239,68,68,0.28)');
+  grad.addColorStop(0.5,'rgba(245,158,11,0.14)');
+  grad.addColorStop(1,'rgba(34,197,94,0.02)');
+  ctx.beginPath(); ctx.moveTo(xOf(0),yOf(demandCurve[0]));
+  for(let i=1;i<=STEPS;i++) ctx.lineTo(xOf(i),yOf(demandCurve[i]));
+  ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath();
+  ctx.fillStyle=grad; ctx.fill();
+  // Line
+  ctx.beginPath(); ctx.moveTo(xOf(0),yOf(demandCurve[0]));
+  for(let i=1;i<=STEPS;i++) ctx.lineTo(xOf(i),yOf(demandCurve[i]));
+  ctx.strokeStyle='#f59e0b99'; ctx.lineWidth=1.5; ctx.stroke();
+  // Cursor
+  const cx=((h-MIN_H)/(MAX_H-MIN_H))*W;
+  ctx.beginPath(); ctx.moveTo(cx,0); ctx.lineTo(cx,H);
+  ctx.strokeStyle='#00e5ff'; ctx.lineWidth=1.5; ctx.setLineDash([3,3]); ctx.stroke(); ctx.setLineDash([]);
+  const ci=Math.round(((h-MIN_H)/(MAX_H-MIN_H))*STEPS);
+  const cv=demandCurve[Math.min(ci,STEPS)];
+  ctx.beginPath(); ctx.arc(cx,yOf(cv),4,0,Math.PI*2); ctx.fillStyle='#00e5ff'; ctx.fill();
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function render(hour){
+  const{scores,activeEvents}=computeScores(hour);
+  const dead=hour>=19.8&&hour<=21.2;
+  document.getElementById('tl-dead').style.display=dead?'inline':'none';
+  updateCircles();
+  drawSparkline(hour);
+
+  // Top hint
+  const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  const top=sorted[0];
+  const tz=ZONES.find(z=>z.id===top[0]);
+  document.getElementById('tl-hint').textContent=
+    dead?'— хората са на маса или вкъщи':`Топ: ${tz?.icon||''} ${tz?.name||top[0]} (${top[1].toFixed(1)})`;
+
+  // ── ZONE LIST SIDEBAR ──
+  const zList=document.getElementById('zone-list');
+  if(zList){
+    zList.innerHTML=sorted.map(([zid,score])=>{
+      const z=ZONES.find(x=>x.id===zid); if(!z) return '';
+      const c=demandColor(score, z.type);
+      const ev=(activeEvents[zid]||[]);
+      const sub=ev.length?ev[0].name:'';
+      return `<div class="zone-item" onclick="selectZoneFromList('${zid}')" id="li-${zid}">
+        <div class="zone-dot" style="background:${c.fill}"></div>
+        <div style="flex:1;min-width:0">
+          <div class="zone-name">${z.icon} ${z.name}</div>
+          ${sub?`<div class="zone-sub">${sub}</div>`:''}
+        </div>
+        <div class="zone-score" style="color:${c.fill}">${score.toFixed(1)}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Update nav and direction hint
+  if(navTarget&&userLat!==null) updateNavDisplay();
+  if(userLat!==null) updateDirectionHint(scores);
+}
+
+function selectZoneFromList(zid){
+  showZonePopup(zid);
+  const z=ZONES.find(x=>x.id===zid);
+  if(z) map.setView([z.lat,z.lng],15);
+}
+window.selectZoneFromList=selectZoneFromList;
+
+// ═══════════════════════════════════════════════
+// DIRECTION HINT — стрелка към близка жълта/орн зона
+// ═══════════════════════════════════════════════
+const ARROWS_8 = ['⬆️','↗️','➡️','↘️','⬇️','↙️','⬅️','↖️'];
+const DIRS_BG  = ['С','СИ','И','ЮИ','Ю','ЮЗ','З','СЗ'];
+
+// Address lookup cache
+const addrCache = {};
+
+async function getAddress(lat,lng){
+  const key=`${lat.toFixed(4)},${lng.toFixed(4)}`;
+  if(addrCache[key]) return addrCache[key];
+  try{
+    const url=`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=17`;
+    const r=await fetch(url,{headers:{'User-Agent':'SofiaTaxiDemand/1.0'}});
+    const d=await r.json();
+    const road=d.address?.road||d.address?.pedestrian||'';
+    const num=d.address?.house_number||'';
+    const addr=road?(road+(num?' '+num:'')):'';
+    addrCache[key]=addr;
+    return addr;
+  }catch(e){ return ''; }
+}
+
+let dirHintZid=null, dirHintSuppressed=false;
+
+function closeDirHint(){
+  dirHintSuppressed=true;
+  document.getElementById('direction-hint').style.display='none';
+}
+window.closeDirHint=closeDirHint;
+
+function updateDirectionHint(scores){
+  if(userLat===null||dirHintSuppressed) return;
+  // Find nearest zone with score >= 1.6 (yellow/orange/red)
+  let best=null, bestDist=Infinity, bestScore=0;
+  ZONES.forEach(z=>{
+    const s=scores[z.id]||0;
+    if(s<1.6) return; // only yellow+
+    const d=haversine(userLat,userLng,z.lat,z.lng);
+    // Weight: closer & higher score wins
+    const w=d/(s*s);
+    if(w<bestDist){ bestDist=w; best=z; bestScore=s; }
+  });
+
+  const panel=document.getElementById('direction-hint');
+  if(!best){ panel.style.display='none'; return; }
+  if(best.id===dirHintZid&&panel.style.display!=='none') return; // no flicker
+  dirHintZid=best.id;
+
+  const realDist=haversine(userLat,userLng,best.lat,best.lng);
+  const bear=bearing(userLat,userLng,best.lat,best.lng);
+
+  // Device heading correction
+  let relBear=bear;
+  if(deviceHeading!==null) relBear=(bear-deviceHeading+360)%360;
+
+  const arrowIdx=Math.round(relBear/45)%8;
+  const cardDir=DIRS_BG[Math.round(bear/45)%8];
+  const distTxt=realDist<1000?`${Math.round(realDist)} м`:`${(realDist/1000).toFixed(1)} км`;
+  const c=demandColor(bestScore);
+
+  document.getElementById('dh-arrow').textContent=ARROWS_8[arrowIdx];
+  document.getElementById('dh-name').textContent=`${best.icon} ${best.name}`;
+  document.getElementById('dh-addr').textContent=`Посока ${cardDir} · ${Math.round(bear)}°`;
+  document.getElementById('dh-dist').textContent=`📏 ${distTxt} от теб`;
+  document.getElementById('dh-score').textContent=bestScore.toFixed(1);
+  document.getElementById('dh-score').style.color=c.fill;
+  panel.style.display='block';
+  panel.style.borderTopColor=c.fill;
+
+  // Special message for traffic zones
+  const isJam = best.type === 'traffic';
+  document.getElementById('dh-name').textContent =
+    isJam ? `🚦 ${best.name} — ДВИЖИ СЕ ОБРАТНО!` : `${best.icon} ${best.name}`;
+  document.getElementById('dh-name').style.color = isJam ? '#a855f7' : 'var(--amber)';
+
+  // Draw dashed line on map (replace previous)
+  if(window._dirLine) map.removeLayer(window._dirLine);
+  window._dirLine=L.polyline([[userLat,userLng],[best.lat,best.lng]],{
+    color:c.fill, weight:2.5, dashArray:'6,5', opacity:0.65
+  }).addTo(map);
+
+  // Fetch address async and update
+  getAddress(best.lat,best.lng).then(addr=>{
+    if(addr && dirHintZid===best.id){
+      document.getElementById('dh-addr').textContent=
+        `${addr} · ${cardDir} · ${distTxt}`;
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// GPS + NAVIGATION
+// ═══════════════════════════════════════════════
+function deg2rad(d){return d*Math.PI/180;}
+function haversine(lat1,lng1,lat2,lng2){
+  const R=6371000;
+  const dLat=deg2rad(lat2-lat1),dLng=deg2rad(lng2-lng1);
+  const a=Math.sin(dLat/2)**2+Math.cos(deg2rad(lat1))*Math.cos(deg2rad(lat2))*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+function bearing(lat1,lng1,lat2,lng2){
+  const dLng=deg2rad(lng2-lng1);
+  const y=Math.sin(dLng)*Math.cos(deg2rad(lat2));
+  const x=Math.cos(deg2rad(lat1))*Math.sin(deg2rad(lat2))-Math.sin(deg2rad(lat1))*Math.cos(deg2rad(lat2))*Math.cos(dLng);
+  return (Math.atan2(y,x)*180/Math.PI+360)%360;
+}
+function bearingArrow(deg){
+  const arrows=['⬆️','↗️','➡️','↘️','⬇️','↙️','⬅️','↖️'];
+  return arrows[Math.round(deg/45)%8];
+}
+
+let deviceHeading=null;
+if(window.DeviceOrientationEvent){
+  window.addEventListener('deviceorientationabsolute',e=>{deviceHeading=e.alpha;},true);
+  window.addEventListener('deviceorientation',e=>{if(e.webkitCompassHeading) deviceHeading=e.webkitCompassHeading;},true);
+}
+
+function startNav(zid){
+  const z=ZONES.find(x=>x.id===zid);
+  if(!z) return;
+  navTarget=z;
+  map.closePopup();
+  document.getElementById('nav-panel').classList.add('open');
+  document.getElementById('nav-target').textContent=`${z.icon} ${z.name}`;
+  const{scores}=computeScores(currentHour);
+  const s=scores[zid]||0;
+  const c=demandColor(s, z?.type);
+  document.getElementById('nav-score').textContent=s.toFixed(1);
+  document.getElementById('nav-score').style.color=c.fill;
+
+  if(userLat!==null) updateNavDisplay();
+  else startGPS();
+}
+window.startNav=startNav;
+
+function closeNav(){
+  document.getElementById('nav-panel').classList.remove('open');
+  navTarget=null;
+}
+window.closeNav=closeNav;
+
+function updateNavDisplay(){
+  if(!navTarget||userLat===null) return;
+  const dist=haversine(userLat,userLng,navTarget.lat,navTarget.lng);
+  const bear=bearing(userLat,userLng,navTarget.lat,navTarget.lng);
+  const distTxt=dist<1000?`${Math.round(dist)} м`:`${(dist/1000).toFixed(1)} км`;
+  document.getElementById('nav-dist').textContent=`📏 ${distTxt}`;
+
+  // Relative to device heading if available
+  let relBear=bear;
+  if(deviceHeading!==null) relBear=(bear-deviceHeading+360)%360;
+  document.getElementById('nav-compass').textContent=bearingArrow(relBear);
+
+  const cardinals=['С','СИ','И','ЮИ','Ю','ЮЗ','З','СЗ'];
+  const cardDir=cardinals[Math.round(bear/45)%8];
+  document.getElementById('nav-hint').textContent=
+    `Посока ${cardDir} · ${distTxt} · ${Math.round(bear)}°`;
+
+  // Draw line on map
+  if(window._navLine) map.removeLayer(window._navLine);
+  window._navLine=L.polyline([[userLat,userLng],[navTarget.lat,navTarget.lng]],
+    {color:'#00e5ff',weight:2,dashArray:'6,4',opacity:0.7}).addTo(map);
+}
+
+function startGPS(){
+  const btn=document.getElementById('gps-btn');
+  btn.classList.add('active');
+  if(!navigator.geolocation){
+    document.getElementById('nav-hint').textContent='GPS не е наличен';
+    return;
+  }
+  if(watchId) return; // already watching
+  watchId=navigator.geolocation.watchPosition(
+    pos=>{
+      userLat=pos.coords.latitude;
+      userLng=pos.coords.longitude;
+      // Place/update user marker
+      if(!userMarker){
+        const pulseIcon = L.divIcon({
+          className:'',
+          html:`<div style="position:relative;width:24px;height:24px;">
+            <div style="position:absolute;inset:0;border-radius:50%;background:rgba(0,229,255,.25);animation:pulse-ring 3s ease-out infinite;"></div>
+            <div style="position:absolute;inset:5px;border-radius:50%;background:#00e5ff;border:2px solid #fff;box-shadow:0 0 8px #00e5ff;"></div>
+          </div>`,
+          iconSize:[24,24], iconAnchor:[12,12],
+        });
+        userMarker=L.marker([userLat,userLng],{icon:pulseIcon,zIndexOffset:1000}).addTo(map);
+        userMarker.bindTooltip('Вие сте тук',{permanent:false,offset:[12,0]});
+        map.setView([userLat,userLng],14);
+      } else {
+        userMarker.setLatLng([userLat,userLng]);
+      }
+      if(navTarget) updateNavDisplay();
+      // Auto-direction hint to nearest worthy zone
+      const {scores:sc}=computeScores(currentHour);
+      updateDirectionHint(sc);
+    },
+    err=>{
+      document.getElementById('nav-hint').textContent='GPS грешка: '+err.message;
+      btn.classList.remove('active');
+    },
+    {enableHighAccuracy:true,maximumAge:5000,timeout:15000}
+  );
+}
+
+document.getElementById('gps-btn').addEventListener('click',()=>{
+  if(watchId){
+    navigator.geolocation.clearWatch(watchId);
+    watchId=null;
+    document.getElementById('gps-btn').classList.remove('active');
+    if(userMarker){map.removeLayer(userMarker);userMarker=null;}
+    if(window._dirLine){map.removeLayer(window._dirLine);window._dirLine=null;}
+    if(window._navLine){map.removeLayer(window._navLine);window._navLine=null;}
+    document.getElementById('direction-hint').style.display='none';
+    userLat=null;userLng=null;
+  } else {
+    dirHintSuppressed=false;
+    dirHintZid=null;
+    // Show panel immediately with waiting message
+    document.getElementById('direction-hint').style.display='block';
+    document.getElementById('dh-name').textContent='🛰 Изчакай GPS…';
+    document.getElementById('dh-arrow').textContent='📡';
+    document.getElementById('dh-dist').textContent='Получаване на локация…';
+    document.getElementById('dh-score').textContent='';
+    startGPS();
+  }
+});
+
+function autoNavClosestPeak(){
+  if(userLat===null) return;
+  const{scores}=computeScores(currentHour);
+  // Find highest score within reasonable distance
+  let best=null,bestScore=0;
+  ZONES.forEach(z=>{
+    const s=scores[z.id]||0;
+    const d=haversine(userLat,userLng,z.lat,z.lng);
+    if(s>=2.0&&d<8000&&s>bestScore){bestScore=s;best=z;}
+  });
+  if(best) startNav(best.id);
+}
+
+// ═══════════════════════════════════════════════
+// TICKER
+// ═══════════════════════════════════════════════
+function buildTicker(){
+  const zMap={};ZONES.forEach(z=>{zMap[z.id]=z;});
+  const items=EVENTS.filter(dayMatches).sort((a,b)=>a.endHour-b.endHour)
+    .map(ev=>{
+      const z=zMap[ev.zone];
+      return`<span class="tick-item">
+        <span class="ev-time">${fmtHour(ev.endHour)}</span>
+        <span> ${ev.name} </span>
+        <span class="ev-loc">@ ${z?.name||ev.zone}</span>
+        <span style="color:#0f2040"> ·· </span>
+      </span>`;
+    });
+  const el=document.getElementById('ticker');
+  el.innerHTML=items.join('')+items.join('');
+  el.style.animation='none';el.offsetHeight;el.style.animation='';
+}
+
+// ═══════════════════════════════════════════════
+// AIRPORT — flight-cache.json
+// ═══════════════════════════════════════════════
+let flightHours=Array(24).fill(0),airportStatus='offline';
+
+function injectAirportEvents(){
+  const keep=EVENTS.filter(e=>!e._fromFlight);
+  for(let h=0;h<24;h++){
+    const c=flightHours[h]; if(!c) continue;
+    keep.push({zone:'airport',name:`✈ ${c} рейс${c===1?'':'а'} ~${String(h).padStart(2,'0')}:00`,
+      endHour:h+0.25,boost:Math.min(3.8,c*0.42),repeat:'daily',_fromFlight:true});
+  }
+  EVENTS.length=0;keep.forEach(e=>EVENTS.push(e));
+}
+
+function updateAirportBadge(){
+  const b=document.getElementById('airport-badge');
+  if(airportStatus==='live')        {b.textContent='✈ LIVE';     b.style.color='#22c55e';}
+  else if(airportStatus==='fallback'){b.textContent='✈ ПРОГНОЗА';b.style.color='#f59e0b';}
+  else                              {b.textContent='✈ ОФЛАЙН';  b.style.color='#ef4444';}
+}
+
+function applyFallbackAirport(){
+  airportStatus='fallback';
+  [[6,2],[7,4],[8,5],[9,5],[10,4],[11,4],[12,3],[13,4],[14,3],[15,4],[16,6],
+   [17,5],[18,7],[19,8],[20,6],[21,5],[22,5],[23,4]].forEach(([h,c])=>{flightHours[h]=c;});
+  injectAirportEvents();
+}
+
+function loadFlights(){
+  fetch('flight-cache.json')
+    .then(r=>{if(!r.ok)throw 0;return r.json();})
+    .then(data=>{
+      const fl=data.data||[];if(!fl.length)throw 0;
+      flightHours=Array(24).fill(0);
+      fl.forEach(f=>{
+        if(!f.arrival?.scheduled)return;
+        const t=new Date(f.arrival.estimated||f.arrival.scheduled);
+        const nonEU=(f.departure?.airport||'').toLowerCase().match(/tur|israel|uk/);
+        const ready=new Date(t.getTime()+(nonEU?20:10)*60000);
+        flightHours[ready.getHours()]++;
+      });
+      airportStatus='live';
+      injectAirportEvents();updateAirportBadge();buildCurve();buildTicker();render(currentHour);
+    })
+    .catch(()=>{applyFallbackAirport();updateAirportBadge();buildCurve();buildTicker();render(currentHour);});
+}
+
+// ═══════════════════════════════════════════════
+// NOMINATIM AUTO-GEOCODE
+// При зареждане browser-ът пита OSM за реалните
+// координати и ги кешира. Следващото зареждане
+// използва кеша — не вика API.
+// ═══════════════════════════════════════════════
+const NOMINATIM_QUERIES = {
+  airport:       "Летище София SOF Bulgaria",
+  bpark:         "Business Park Sofia Mladost Bulgaria",
+  garitage:      "Garitage Park Donka Ushlinova 2 Sofia Bulgaria",
+  polygraphia:   "Polygraphia Office Center Tsarigradsko 47 Sofia Bulgaria",
+  capital_fort:  "Capital Fort Tsarigradsko shose 90 Sofia Bulgaria",
+  megapark:      "Megapark Sofia Bulgaria",
+  advance_bc:    "Advance Business Center Mladost Sofia Bulgaria",
+  park_lane:     "Park Lane Office Center Srebarna 16 Sofia Bulgaria",
+  expo2000:      "Expo 2000 Tsarigradsko shose Sofia Bulgaria",
+  sofia_tower:   "Sofia Tower Mall of Sofia Stamboliyski Bulgaria",
+  iec:           "Inter Expo Center Tsarigradsko 147 Sofia Bulgaria",
+  sky_fort:      "Sky Fort Tsarigradsko shose Sofia Bulgaria",
+  serdika:       "Serdika Center Sitnyakovo Sofia Bulgaria",
+  paradise:      "Paradise Center Cherni vrah Sofia Bulgaria",
+  ring_mall:     "Sofia Ring Mall Okolovrasten pat Bulgaria",
+  the_mall:      "The Mall Sofia Tsarigradsko 115 Bulgaria",
+  bulgaria_mall: "Bulgaria Mall Bulgaria blvd Sofia Bulgaria",
+  park_center:   "Park Center Sofia Cherni vrah Bulgaria",
+  hotels_ctr:    "Radisson Blu Sofia Tsar Osvoboditel Bulgaria",
+  hotels_ndk:    "Kempinski Hotel Zografski James Boucher Sofia Bulgaria",
+  hotel_marinela:"Hotel Marinela Sofia Cherni vrah 100 Bulgaria",
+  cjp:           "Central Railway Station Sofia Maria Luiza Bulgaria",
+  cab_north:     "Central Bus Station Sofia Maria Luiza 100 Bulgaria",
+  ag_yug:        "Автогара Юг Sofia Bulgaria",
+  ag_pod:        "Автогара Подуяне Sofia Bulgaria",
+  arena:         "Arena Sofia 8888 Asen Yordanov Bulgaria",
+  ndk:           "National Palace of Culture NDK Sofia Bulgaria",
+  borisova:      "Borisova gradina park Sofia Bulgaria",
+  vasil_levski:  "National Stadium Vasil Levski Sofia Bulgaria",
+  lozenets_wt:   "Vodna kula Lozenets Sofia Bulgaria",
+  pirogov:       "UMBALSM Pirogov Totleben 21 Sofia Bulgaria",
+  alexand:       "UMBAL Aleksandrovska Sofia Bulgaria",
+  vma:           "Voenno-medicinska akademia Sofia Bulgaria",
+  tokuda:        "Tokuda Hospital Sofia Bulgaria",
+  unss:          "UNSS University National World Economy Sofia Bulgaria",
+  nbu:           "New Bulgarian University Sofia Bulgaria",
+  tu:            "Technical University Sofia Darvenitsa Bulgaria",
+  su:            "Sofia University St Kliment Ohridski Bulgaria",
+  simenovo:      "Hill Side Sofia Simeonovsko shose 97 Bulgaria",
+  manast:        "Manastirski livadi Sofia Bulgaria",
+  boyana:        "Boyana Sofia Bulgaria",
+  vitosha_vz:    "вилна зона Камбаните Симеоново Sofia Bulgaria",
+  bulgaria_towers:"Bulgaria Towers Todor Kableshkov Sofia Bulgaria",
+};
+
+const CACHE_KEY = 'sofia_taxi_coords_v3';
+const CACHE_TTL  = 7 * 24 * 3600 * 1000; // 7 дни
+
+async function geocodeZones() {
+  // Load cache
+  let cache = {};
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Date.now() - parsed.ts < CACHE_TTL) cache = parsed.coords;
+    }
+  } catch(e) {}
+
+  const zMap = {};
+  ZONES.forEach(z => { zMap[z.id] = z; });
+
+  // Geocode only missing ones
+  const missing = ZONES.filter(z => !cache[z.id] && NOMINATIM_QUERIES[z.id]);
+  if (missing.length === 0) {
+    applyGeoCache(cache, zMap);
+    return;
+  }
+
+  // Show status
+  const badge = document.getElementById('airport-badge');
+  const origText = badge.textContent;
+
+  let i = 0;
+  for (const z of missing) {
+    const q = NOMINATIM_QUERIES[z.id];
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, { headers: {'User-Agent': 'SofiaTaxiDemand/1.0'} });
+      const data = await res.json();
+      if (data && data[0]) {
+        cache[z.id] = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+      }
+    } catch(e) { /* skip */ }
+    i++;
+    badge.textContent = `📡 ${i}/${missing.length}`;
+    await new Promise(r => setTimeout(r, 1100)); // Nominatim: max 1 req/sec
+  }
+
+  // Save cache
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), coords: cache })); } catch(e){}
+
+  badge.textContent = origText;
+  applyGeoCache(cache, zMap);
+}
+
+function applyGeoCache(cache, zMap) {
+  let updated = 0;
+  for (const [id, coords] of Object.entries(cache)) {
+    if (zMap[id] && coords) {
+      zMap[id].lat = coords.lat;
+      zMap[id].lng = coords.lng;
+      updated++;
+    }
+  }
+  if (updated > 0) {
+    // Rebuild circles with corrected coords
+    for (const [id, circle] of Object.entries(circleMap)) {
+      const z = zMap[id];
+      if (z) circle.setLatLng([z.lat, z.lng]);
+    }
+    render(currentHour);
+  }
+}
+
+// ── Legend toggle ──
+// ── Fullscreen ──
+let isFullscreen = false;
+const fsBtn = document.getElementById('fs-btn');
+fsBtn.addEventListener('click', () => {
+  isFullscreen = !isFullscreen;
+  document.body.classList.toggle('map-fullscreen', isFullscreen);
+  fsBtn.textContent = isFullscreen ? '✕' : '⛶';
+  fsBtn.classList.toggle('active', isFullscreen);
+  setTimeout(() => { map.invalidateSize(); drawSparkline(currentHour); }, 200);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && isFullscreen) fsBtn.click();
+});
+
+// ═══════════════════════════════════════════════
+// SLIDER
+// ═══════════════════════════════════════════════
+const slider=document.getElementById('time-slider');
+slider.addEventListener('input',()=>{
+  currentHour=parseFloat(slider.value);
+  document.getElementById('time-display').textContent=fmtHour(currentHour);
+  render(currentHour);
+  if(navTarget&&userLat!==null) updateNavDisplay();
+});
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+const nowH=new Date().getHours()+new Date().getMinutes()/60;
+const clamped=Math.min(24,Math.max(6,Math.round(nowH*2)/2));
+slider.value=clamped; currentHour=clamped;
+document.getElementById('time-display').textContent=fmtHour(clamped);
+
+applyFallbackAirport();
+buildCurve();
+buildCircles();
+buildTicker();
+render(currentHour);
+loadFlights();
+
+// Geocode всички локации от OSM (кешира за 7 дни)
+geocodeZones();
+
+// Re-render canvas after fonts/layout settle
+setTimeout(()=>{ drawSparkline(currentHour); map.invalidateSize(); }, 300);
+window.addEventListener('resize',()=>{ drawSparkline(currentHour); map.invalidateSize(); });
+}); // end DOMContentLoaded
+</script>
+</body>
+</html>
