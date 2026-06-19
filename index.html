@@ -699,92 +699,95 @@ function getScoreColor(score, type){
   return{color:c.stroke, fillColor:c.fill, fillOpacity:c.fillAlpha, weight:1.5, opacity:0.85};
 }
 
-// Traffic corridors — multiple arrow segments along the actual boulevard
-// Each entry: array of [lat,lng] waypoints tracing the road
-// "dir" = direction of traffic flow (what taxi should go OPPOSITE to)
-const TRAFFIC_ROUTES = {
-  // Орлов мост — задръстване от изток/запад към центъра сутрин
-  // Таксито трябва да се движи ОТ центъра навън (обратно)
+// ═══════════════════════════════════════════════
+// TRAFFIC JAM MARKERS
+// Подход: DIV икони на кръстовищата — голяма стрелка + текст
+// Без полилинии, без грешни координати
+// ═══════════════════════════════════════════════
+const TRAFFIC_INFO = {
   jam_orl: {
-    label:'Орлов мост',
-    // Трасе по бул.Цар Освободител / Орлов мост (изток→запад, посока задръстване)
-    segments:[
-      [[42.6838,23.3500],[42.6838,23.3450],[42.6838,23.3400],[42.6838,23.3345]],
-    ],
-    tip:'Задръстване → Центъра. Ти — КЪМ ИЗТОКА!'
+    // Орлов мост — сутрин задръстване КЪМ центъра (от изток)
+    // Таксито да се движи ОБРАТНО — от центъра навън
+    jamDir:'← КЪМ ЦЕНТЪРА',   // посока на задръстването
+    freeDir:'→ НАВЪН',          // свободна посока за такси
+    freeArrow:'→',
+    color:'#a855f7',
+    tip:'Задръстено КЪМ ЦЕНТЪРА. Ти върви → НАВЪН (свободно!)',
+    time:'07:30–09:30 и 17:00–19:00',
   },
-  // Цариградско шосе — задръстване навън от центъра следобед
   jam_tsar: {
-    label:'Цариградско шосе',
-    segments:[
-      [[42.6662,23.3650],[42.6620,23.3730],[42.6600,23.3795],[42.6575,23.3860]],
-    ],
-    tip:'Задръстване → Летището. Ти — КЪМ ЦЕНТЪРА!'
+    // Цариградско — следобед задръстване НАВЪН (от центъра към летището)
+    jamDir:'→ КЪМ ЛЕТИЩЕТО',
+    freeDir:'← КЪМ ЦЕНТЪРА',
+    freeArrow:'←',
+    color:'#a855f7',
+    tip:'Задръстено → КЪМ ЛЕТИЩЕТО. Ти върви ← КЪМ ЦЕНТЪРА (свободно!)',
+    time:'07:00–09:00 и 17:00–19:30',
   },
-  // бул.Витоша / НДК — задръстване от НДК към центъра
   jam_ndk: {
-    label:'бул.Витоша / НДК',
-    segments:[
-      [[42.6820,23.3195],[42.6855,23.3188],[42.6900,23.3195],[42.6930,23.3200]],
-    ],
-    tip:'Задръстване → Центъра. Ти — КЪМ НДК/ЮГА!'
+    // бул.Витоша / НДК — двупосочно задръстване
+    jamDir:'↑↓ ДВЕ ПОСОКИ',
+    freeDir:'↔ СТРАНИЧНИ УЛ.',
+    freeArrow:'↔',
+    color:'#a855f7',
+    tip:'Задръстено по бул.Витоша. Използвай странични улици!',
+    time:'17:00–19:30 делнични',
   },
-  // бул.Сливница / Сердика — задръстване изток→запад
   jam_serdika: {
-    label:'Сердика / бул.Сливница',
-    segments:[
-      [[42.7012,23.3480],[42.7012,23.3380],[42.7012,23.3280],[42.7012,23.3180]],
-    ],
-    tip:'Задръстване → Запада. Ти — КЪМ ИЗТОКА!'
+    // Сердика / Сливница — изток→запад сутрин
+    jamDir:'← КЪМ ЗАПАДА',
+    freeDir:'→ КЪМ ИЗТОКА',
+    freeArrow:'→',
+    color:'#a855f7',
+    tip:'Задръстено ← КЪМ ЗАПАДА. Ти върви → КЪМ ИЗТОКА (свободно!)',
+    time:'07:30–09:30 делнични',
   },
 };
 
-const trafficLines = {}; // id → array of L.polyline
+const trafficMarkers = {}; // id → L.marker (div icon)
 
-// Add SVG arrowhead marker to map
-function addArrowMarker(){
-  // Inject SVG defs into Leaflet's SVG layer for arrowhead markers
-  const svgEl = document.querySelector('.leaflet-zoom-animated');
-  if(!svgEl) return;
-  const ns='http://www.w3.org/2000/svg';
-  let defs=svgEl.querySelector('defs');
-  if(!defs){ defs=document.createElementNS(ns,'defs'); svgEl.prepend(defs); }
-  ['jam-arrow-active','jam-arrow-dim'].forEach((id,idx)=>{
-    if(svgEl.querySelector('#'+id)) return;
-    const mk=document.createElementNS(ns,'marker');
-    mk.setAttribute('id',id);
-    mk.setAttribute('markerWidth','6');
-    mk.setAttribute('markerHeight','6');
-    mk.setAttribute('refX','5');
-    mk.setAttribute('refY','3');
-    mk.setAttribute('orient','auto');
-    const path=document.createElementNS(ns,'path');
-    path.setAttribute('d','M0,0 L0,6 L6,3 z');
-    path.setAttribute('fill', idx===0?'#a855f7':'#3a2060');
-    mk.appendChild(path);
-    defs.appendChild(mk);
+function makeTrafficIcon(info, active){
+  if(!active){
+    return L.divIcon({
+      className:'',
+      html:`<div style="width:36px;height:36px;border-radius:50%;background:#1a0a2e88;border:1px solid #3a206066;display:flex;align-items:center;justify-content:center;font-size:16px;opacity:0.4">🚦</div>`,
+      iconSize:[36,36], iconAnchor:[18,18],
+    });
+  }
+  return L.divIcon({
+    className:'',
+    html:`<div style="
+      background:#0d0520f0;
+      border:2px solid ${info.color};
+      border-radius:10px;
+      padding:5px 8px;
+      font-family:'Share Tech Mono',monospace;
+      text-align:center;
+      box-shadow:0 0 12px ${info.color}88;
+      animation:jam-blink 2s ease-in-out infinite;
+      min-width:90px;
+    ">
+      <div style="font-size:18px;line-height:1">🚦</div>
+      <div style="font-size:9px;color:#888;margin-top:1px">${info.jamDir}</div>
+      <div style="font-size:16px;color:${info.color};font-weight:bold;margin:1px 0">${info.freeArrow} СВОБОДНО</div>
+      <div style="font-size:9px;color:#00e5ff">${info.freeDir}</div>
+    </div>`,
+    iconSize:[100,80], iconAnchor:[50,40],
   });
 }
 
 function buildCircles(){
   ZONES.forEach(z=>{
     if(z.type==='traffic'){
-      const route=TRAFFIC_ROUTES[z.id];
-      if(route){
-        const lines=[];
-        route.segments.forEach(seg=>{
-          const line=L.polyline(seg,{
-            color:'#3a2060', weight:7, opacity:0.3,
-            dashArray:null,
-          }).addTo(map);
-          lines.push(line);
-        });
-        trafficLines[z.id]=lines;
-        // Invisible click circle
-        const circ=L.circle([z.lat,z.lng],{radius:300,fillOpacity:0,opacity:0});
-        circ.on('click',()=>showZonePopup(z.id));
-        circ.addTo(map);
-        circleMap[z.id]=circ;
+      const info=TRAFFIC_INFO[z.id];
+      if(info){
+        const marker=L.marker([z.lat,z.lng],{
+          icon:makeTrafficIcon(info, false),
+          zIndexOffset:600,
+        }).addTo(map);
+        marker.on('click',()=>showZonePopup(z.id));
+        trafficMarkers[z.id]=marker;
+        circleMap[z.id]=marker; // reuse circleMap slot
       }
       return;
     }
@@ -793,110 +796,16 @@ function buildCircles(){
     circle.addTo(map);
     circleMap[z.id]=circle;
   });
-  // Try adding arrowheads after a short delay
-  setTimeout(addArrowMarker, 800);
 }
-
-function showZonePopup(zid){
-  const z=ZONES.find(x=>x.id===zid);
-  if(!z) return;
-  const{scores,activeEvents}=computeScores(currentHour);
-  const s=scores[zid]||0;
-  const c=demandColor(s, z?.type);
-  const evs=(activeEvents[zid]||[]).slice(0,3);
-  const route=TRAFFIC_ROUTES[zid];
-  const isJam=z.type==='traffic';
-  const evHtml=isJam && route
-    ? `<div style="color:#a855f7;font-weight:600">🚦 ${route.tip}</div><div style="color:#4a6080;margin-top:3px">Задръства при пик часове</div>`
-    : evs.length?evs.map(e=>`<div>• ${e.name}</div>`).join(''):'<div style="color:#4a6080">Базово търсене</div>';
-  const pct=Math.min(100,(s/4.5)*100);
-
-  L.popup({maxWidth:220,className:'dark-popup'})
-    .setLatLng([z.lat,z.lng])
-    .setContent(`
-      <div class="popup-title">${z.icon} ${z.name}</div>
-      <div class="popup-score" style="color:${c.fill}">${s.toFixed(1)} <span style="font-size:12px">${c.label}</span></div>
-      <div style="height:4px;background:#182d47;border-radius:2px;margin:6px 0">
-        <div style="width:${pct}%;height:100%;background:${c.fill};border-radius:2px"></div>
-      </div>
-      <div class="popup-ev">${evHtml}</div>
-      <button class="popup-nav-btn" onclick="startNav('${zid}')">🧭 Навигирай (in-app)</button>
-      <div style="display:flex;gap:6px;margin-top:6px;">
-        <a href="https://waze.com/ul?q=${encodeURIComponent(z.wazeName||z.name)}&navigate=yes" target="_blank"
-           style="flex:1;display:block;text-align:center;font-size:10px;color:#00e5ff;font-family:'Share Tech Mono',monospace;text-decoration:none;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;">
-          🚗 Waze ↗
-        </a>
-        <a href="https://www.google.com/maps?q=${z.lat},${z.lng}" target="_blank"
-           style="flex:1;display:block;text-align:center;font-size:10px;color:#4a6080;font-family:'Share Tech Mono',monospace;text-decoration:none;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;">
-          📍 Google ↗
-        </a>
-      </div>
-    `).openOn(map);
-}
-
-// Arrow label markers for traffic
-const trafficLabels = {};
 
 function updateCircles(){
   const{scores}=computeScores(currentHour);
   ZONES.forEach(z=>{
     const s=scores[z.id]||0;
     if(z.type==='traffic'){
-      const lines=trafficLines[z.id]||[];
-      const route=TRAFFIC_ROUTES[z.id];
-      const active=s>=1.5;
-      lines.forEach((line,li)=>{
-        const pts=route.segments[li];
-        if(active){
-          // Animate: cycle through sub-segments to simulate arrow movement
-          line.setStyle({color:'#a855f7',opacity:0.9,weight:8});
-          // Add arrowhead tip at end point
-          const endPt=pts[pts.length-1];
-          const midPt=pts[Math.floor(pts.length/2)];
-          if(!trafficLabels[z.id]){
-            // Arrow emoji label at midpoint
-            const icon=L.divIcon({
-              className:'',
-              html:`<div id="tl-${z.id}" style="
-                font-size:22px;line-height:1;
-                filter:drop-shadow(0 0 4px #a855f7);
-                animation:jam-blink 1.2s ease-in-out infinite;
-              ">🚦</div>`,
-              iconSize:[28,28], iconAnchor:[14,14]
-            });
-            trafficLabels[z.id]=L.marker(midPt,{icon,zIndexOffset:500,interactive:false}).addTo(map);
-          } else {
-            trafficLabels[z.id].setLatLng(midPt);
-            const el=trafficLabels[z.id].getElement();
-            if(el) el.style.display='block';
-          }
-          // Tip label at end
-          const tipKey=z.id+'_tip';
-          if(!trafficLabels[tipKey]){
-            const tipIcon=L.divIcon({
-              className:'',
-              html:`<div style="
-                background:#1a0a2e;border:1px solid #a855f7;border-radius:4px;
-                color:#d08dff;font-size:10px;font-family:'Share Tech Mono',monospace;
-                padding:2px 5px;white-space:nowrap;
-              ">${route.tip}</div>`,
-              iconSize:[180,20], iconAnchor:[90,10]
-            });
-            trafficLabels[tipKey]=L.marker(endPt,{icon:tipIcon,zIndexOffset:500,interactive:false}).addTo(map);
-          } else {
-            const el=trafficLabels[tipKey].getElement();
-            if(el) el.style.display='block';
-          }
-        } else {
-          line.setStyle({color:'#2a1540',opacity:0.15,weight:4});
-          [z.id, z.id+'_tip'].forEach(k=>{
-            if(trafficLabels[k]){
-              const el=trafficLabels[k].getElement();
-              if(el) el.style.display='none';
-            }
-          });
-        }
-      });
+      const info=TRAFFIC_INFO[z.id];
+      const marker=trafficMarkers[z.id];
+      if(marker&&info) marker.setIcon(makeTrafficIcon(info, s>=1.5));
       return;
     }
     const opts=getScoreColor(s, z.type);
