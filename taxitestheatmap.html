@@ -272,11 +272,6 @@ body.map-fullscreen #zone-sidebar { display:none; }
 </div>
 <button id="fs-btn"  title="Fullscreen карта">⛶</button>
 
-  <div class="leg"><div class="leg-sq" style="background:#f97316"></div>Висок</div>
-  <div class="leg"><div class="leg-sq" style="background:#f59e0b"></div>Среден</div>
-  <div class="leg"><div class="leg-sq" style="background:#22c55e"></div>Нормален</div>
-  <div class="leg"><div class="leg-sq" style="background:#a855f7"></div>🚦 Обр.посока</div>
-  <div class="leg"><div class="leg-sq" style="background:#1a3050;border:1px solid #2a4870"></div>Тих</div>
 </div>
 
 <!-- Navigation bottom sheet -->
@@ -444,6 +439,19 @@ const ZONES = [
   { id:"jam_tsar",      name:"⚠ Задръстване Цариградско (Армейски)",  icon:"🚦", lat:42.6662, lng:23.3795, radius:200, type:"traffic",          wazeName:"Цариградско шосе Армейски кръстовище Sofia" },
   { id:"jam_ndk",       name:"⚠ Задръстване бул.България",              icon:"🚦", lat:42.6820, lng:23.3050, radius:160, type:"traffic",          wazeName:"булевард България Sofia" },
   { id:"jam_serdika",   name:"⚠ Задръстване Сердика / бул.Сливница", icon:"🚦", lat:42.7012, lng:23.3228, radius:160, type:"traffic",          wazeName:"Сердика бул Сливница Sofia" },
+
+  // ── КАРЪК ЗОНИ — невидими в нормален мод, светват само в Карък ──
+  // Жилищни квартали без конкуренция, добри за бронзов партньор
+  { id:"k_borovo",    name:"жк Борово",              icon:"🏘", lat:42.6710, lng:23.2960, radius:300, type:"residential_karyk", wazeName:"жк Борово Sofia Bulgaria" },
+  { id:"k_krasno",    name:"жк Красно село",          icon:"🏘", lat:42.6890, lng:23.2990, radius:300, type:"residential_karyk", wazeName:"жк Красно село Sofia Bulgaria" },
+  { id:"k_nadezhda2", name:"жк Надежда 2/3/4",        icon:"🏘", lat:42.7280, lng:23.3020, radius:300, type:"residential_karyk", wazeName:"жк Надежда Sofia Bulgaria" },
+  { id:"k_zaharna",   name:"Захарна фабрика (жилища)", icon:"🏘", lat:42.7020, lng:23.2900, radius:280, type:"residential_karyk", wazeName:"Захарна фабрика Sofia Bulgaria" },
+  { id:"k_pavlovo",   name:"жк Павлово",              icon:"🏘", lat:42.6770, lng:23.2820, radius:280, type:"residential_karyk", wazeName:"жк Павлово Sofia Bulgaria" },
+  { id:"k_iztok_zh",  name:"жк Изток (жилищна зона)", icon:"🏘", lat:42.6820, lng:23.3620, radius:280, type:"residential_karyk", wazeName:"жк Изток Sofia Bulgaria" },
+  { id:"k_izgrev",    name:"жк Изгрев",               icon:"🏘", lat:42.6720, lng:23.3500, radius:260, type:"residential_karyk", wazeName:"жк Изгрев Sofia Bulgaria" },
+  { id:"k_geo_milev", name:"жк Гео Милев",            icon:"🏘", lat:42.6860, lng:23.3680, radius:260, type:"residential_karyk", wazeName:"жк Гео Милев Sofia Bulgaria" },
+  { id:"k_mladost2",  name:"жк Младост 2",            icon:"🏘", lat:42.6580, lng:23.3820, radius:280, type:"residential_karyk", wazeName:"жк Младост 2 Sofia Bulgaria" },
+  { id:"k_mladost3",  name:"жк Младост 3",            icon:"🏘", lat:42.6480, lng:23.3720, radius:280, type:"residential_karyk", wazeName:"жк Младост 3 Sofia Bulgaria" },
 ];
 
 // ═══════════════════════════════════════════════
@@ -468,6 +476,9 @@ const BASE = {
   banishora:0.4, iliantsi:0.3, druzhba:0.4, musagenitsa:0.4,
   zoo:0.4, sopharma_bc:0.4, telus:0.5, millennium:0.4, oval:0.4,
   grand_arena:0.3,
+  // Карък зони — базово 0, само в Карък режим светват
+  k_borovo:0.3, k_krasno:0.3, k_nadezhda2:0.3, k_zaharna:0.3, k_pavlovo:0.3,
+  k_iztok_zh:0.3, k_izgrev:0.3, k_geo_milev:0.3, k_mladost2:0.3, k_mladost3:0.3,
   // Театри
   nat_theatre:0.3, theatre_199:0.3, youth_theatre:0.3, satira:0.2,
   opera:0.3, theatre_sofia:0.2, sfumato:0.2, cmart:0.2,
@@ -919,9 +930,17 @@ function updateCircles(){
       return;
     }
     let opts = getScoreColor(s, z.type);
-    if(karykMode){
+    if(z.type === 'residential_karyk'){
+      if(karykMode){
+        // In Karyk: show as bright bronze circles
+        opts = {color:'#cd7f32', fillColor:'#cd7f32', fillOpacity:0.55, weight:2, opacity:0.9};
+      } else {
+        // Normal mode: completely invisible
+        opts = {color:'transparent', fillColor:'transparent', fillOpacity:0, weight:0, opacity:0};
+      }
+    } else if(karykMode){
       if(KARYK_AVOID.includes(z.type)){
-        opts = {color:'#1a1030', fillColor:'#110820', fillOpacity:0.15, weight:1, opacity:0.25};
+        opts = {color:'#1a1030', fillColor:'#110820', fillOpacity:0.12, weight:1, opacity:0.2};
       } else if(KARYK_PREFER.includes(z.type)){
         opts = {...opts, fillOpacity: Math.min(0.85,(opts.fillOpacity||0.4)*1.7), weight:2.5};
       }
@@ -1465,8 +1484,8 @@ function applyGeoCache(cache, zMap) {
 // ── Legend toggle ──
 // ── КАРЪК MODE ──
 // Типове зони където ЗЛАТНИТЕ ПАРТНЬОРИ не отиват
-const KARYK_PREFER = ['hospital','university','residential','residential_lux','leisure'];
-const KARYK_AVOID  = ['airport','mall','hotel','office']; // тълпят се там
+const KARYK_PREFER = ['hospital','residential','residential_lux'];
+const KARYK_AVOID  = ['airport','mall','hotel','office','university','nightlife','transit','venue','theatre','cinema'];
 
 let karykMode = false;
 
@@ -1488,7 +1507,7 @@ function updateKarykMode(){
 
   // Find best "hidden gem" zone — good score but avoided type
   const gems = ZONES
-    .filter(z => KARYK_PREFER.includes(z.type))
+    .filter(z => KARYK_PREFER.includes(z.type) || z.type==='residential_karyk')
     .map(z => ({ z, s: scores[z.id]||0 }))
     .filter(({s}) => s >= 0.8)
     .sort((a,b) => b.s - a.s);
