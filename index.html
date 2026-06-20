@@ -126,6 +126,29 @@ body.map-fullscreen #fs-btn  { bottom:70px; }
   animation: jam-pulse 1.5s ease-in-out infinite;
 }
 
+/* ── КАРЪК MODE ── */
+#karyk-btn {
+  position:fixed; left:12px; top:50%; transform:translateY(-50%);
+  z-index:1500; writing-mode:vertical-rl; text-orientation:mixed;
+  background:#0d1929; border:1px solid #182d47;
+  color:#4a6080; font-family:'Share Tech Mono',monospace;
+  font-size:11px; letter-spacing:2px;
+  padding:12px 6px; border-radius:6px; cursor:pointer;
+  transition:all .3s; white-space:nowrap;
+}
+#karyk-btn.active {
+  background:#1a0a2e; border-color:#a855f7;
+  color:#d08dff; box-shadow:0 0 12px #a855f744;
+}
+#karyk-banner {
+  display:none; position:fixed; top:0; left:0; right:0; z-index:3000;
+  background:#0d0520f0; border-bottom:2px solid #a855f7;
+  padding:8px 14px; font-family:'Share Tech Mono',monospace;
+  font-size:11px; color:#d08dff; backdrop-filter:blur(6px);
+}
+#karyk-banner .kb-title { font-size:13px; color:#a855f7; margin-bottom:2px; }
+#karyk-banner .kb-hint  { font-size:10px; color:#6040a0; }
+
 /* ── DIRECTION ARROW overlay ── */
 #direction-hint {
   display:none;
@@ -240,6 +263,11 @@ body.map-fullscreen #zone-sidebar { display:none; }
   </div>
 </div>
 <button id="gps-btn" title="GPS локация">📍</button>
+<button id="karyk-btn" title="Карък Mode — места без конкуренция">К<br>А<br>Р<br>Ъ<br>К</button>
+<div id="karyk-banner">
+  <div class="kb-title">🃏 КАРЪК MODE — Бягай от тълпата</div>
+  <div class="kb-hint" id="karyk-hint">Търся тихи зони без конкуренция…</div>
+</div>
 <button id="fs-btn"  title="Fullscreen карта">⛶</button>
 
   <div class="leg"><div class="leg-sq" style="background:#f97316"></div>Висок</div>
@@ -982,6 +1010,7 @@ function render(hour){
   // Update nav and direction hint
   if(navTarget&&userLat!==null) updateNavDisplay();
   if(userLat!==null) updateDirectionHint(scores);
+  if(karykMode) updateKarykMode();
 }
 
 function selectZoneFromList(zid){
@@ -1425,6 +1454,71 @@ function applyGeoCache(cache, zMap) {
 }
 
 // ── Legend toggle ──
+// ── КАРЪК MODE ──
+// Типове зони където ЗЛАТНИТЕ ПАРТНЬОРИ не отиват
+const KARYK_PREFER = ['hospital','university','residential','residential_lux','leisure'];
+const KARYK_AVOID  = ['airport','mall','hotel','office']; // тълпят се там
+
+let karykMode = false;
+
+const karykBtn    = document.getElementById('karyk-btn');
+const karykBanner = document.getElementById('karyk-banner');
+const karykHint   = document.getElementById('karyk-hint');
+
+karykBtn.addEventListener('click', ()=>{
+  karykMode = !karykMode;
+  karykBtn.classList.toggle('active', karykMode);
+  karykBanner.style.display = karykMode ? 'block' : 'none';
+  if(karykMode) updateKarykMode();
+  render(currentHour);
+});
+
+function updateKarykMode(){
+  if(!karykMode) return;
+  const {scores} = computeScores(currentHour);
+
+  // Find best "hidden gem" zone — good score but avoided type
+  const gems = ZONES
+    .filter(z => KARYK_PREFER.includes(z.type))
+    .map(z => ({ z, s: scores[z.id]||0 }))
+    .filter(({s}) => s >= 0.8)
+    .sort((a,b) => b.s - a.s);
+
+  // Find worst crowded zones to avoid
+  const crowded = ZONES
+    .filter(z => KARYK_AVOID.includes(z.type))
+    .map(z => ({ z, s: scores[z.id]||0 }))
+    .sort((a,b) => b.s - a.s)
+    .slice(0,3)
+    .map(({z}) => z.name.split('(')[0].trim());
+
+  if(gems.length > 0){
+    const top = gems[0];
+    const c   = demandColor(top.s, top.z.type);
+    karykHint.innerHTML =
+      `Иди при <span style="color:${c.fill}">${top.z.icon} ${top.z.name.split('(')[0].trim()}</span> (${top.s.toFixed(1)}) ` +
+      `· Избягвай: ${crowded.join(', ')}`;
+  } else {
+    karykHint.textContent = 'Всички тихи зони са слаби в момента…';
+  }
+}
+
+// Override circle colors in Karyk mode — dim crowded, highlight hidden gems
+const _origGetScoreColor = getScoreColor;
+function getScoreColor(score, type){
+  if(!karykMode) return _origGetScoreColor(score, type);
+  if(KARYK_AVOID.includes(type)){
+    // Dim the tълпа zones
+    return { color:'#1a1030', fillColor:'#1a1030', fillOpacity:0.2, weight:1, opacity:0.3 };
+  }
+  if(KARYK_PREFER.includes(type)){
+    // Boost visual of hidden gem zones
+    const c = _origGetScoreColor(score, type);
+    return { ...c, fillOpacity: Math.min(0.85, (c.fillOpacity||0.4) * 1.6), weight:2.5 };
+  }
+  return _origGetScoreColor(score, type);
+}
+
 // ── Fullscreen ──
 let isFullscreen = false;
 const fsBtn = document.getElementById('fs-btn');
