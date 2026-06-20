@@ -250,6 +250,109 @@ body.map-fullscreen #zone-sidebar { display:none; }
 .popup-ev{font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:6px;}
 .popup-nav-btn{background:var(--cyan);color:#000;border:none;border-radius:4px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;width:100%;font-family:'Share Tech Mono',monospace;}
 .popup-nav-btn:hover{background:#00c8e0;}
+
+/* Weather banner */
+#weather-bar {
+  display:none;
+  background:#0a1a2a;
+  border-bottom:1px solid var(--border);
+  padding:5px 14px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-shrink:0;
+}
+#weather-bar .wb-icon { font-size:18px; }
+#weather-bar .wb-temp { color:var(--cyan); }
+#weather-bar .wb-desc { color:var(--muted); flex:1; }
+#weather-bar .wb-boost{ color:#f59e0b; font-size:10px; }
+body.map-fullscreen #weather-bar { display:none !important; }
+
+/* Next 90 min panel */
+#next90-panel {
+  display:none;
+  position:fixed;
+  top:0; left:0; right:0;
+  z-index:2500;
+  background:#070d1af8;
+  border-bottom:2px solid var(--cyan);
+  max-height:60vh;
+  overflow-y:auto;
+  backdrop-filter:blur(8px);
+}
+#next90-panel .n90-header {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px; color:var(--cyan);
+  border-bottom:1px solid var(--border);
+  position:sticky; top:0; background:#070d1af8; z-index:1;
+}
+#next90-panel .n90-close {
+  margin-left:auto; cursor:pointer;
+  color:var(--muted); font-size:16px; padding:0 4px;
+}
+.n90-item {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 14px; border-bottom:1px solid #0e1d30;
+}
+.n90-time {
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px; color:var(--amber); min-width:48px;
+}
+.n90-icon { font-size:16px; }
+.n90-info { flex:1; }
+.n90-name { font-size:12px; color:var(--text); }
+.n90-zone { font-size:10px; color:var(--muted); }
+.n90-score{
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px; font-weight:bold;
+}
+
+/* Next 90 button */
+#next90-btn {
+  position:fixed; right:12px; bottom:230px; z-index:1500;
+  width:44px; height:44px; border-radius:50%;
+  background:var(--surface); border:1px solid var(--border);
+  color:var(--amber); font-size:18px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 2px 12px rgba(0,0,0,.5);
+}
+#next90-btn.active { background:#1a1400; border-color:var(--amber); }
+body.map-fullscreen #next90-btn { display:none; }
+
+/* Event alert */
+@keyframes alert-pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.85; transform:scale(1.02); }
+}
+#event-alert {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0;
+  z-index:2800;
+  background:#1a0800f5;
+  border-top:2px solid var(--orange);
+  padding:10px 14px;
+  font-family:'Share Tech Mono',monospace;
+  animation:alert-pulse 2s ease-in-out infinite;
+}
+#event-alert .ea-row { display:flex; align-items:center; gap:10px; }
+#event-alert .ea-icon { font-size:28px; }
+#event-alert .ea-info { flex:1; }
+#event-alert .ea-title{ font-size:13px; color:var(--orange); font-weight:bold; }
+#event-alert .ea-sub  { font-size:11px; color:var(--muted); margin-top:2px; }
+#event-alert .ea-dist { font-size:11px; color:var(--cyan); }
+#event-alert .ea-close{ cursor:pointer; color:var(--muted); font-size:18px; padding:4px; }
+#event-alert .ea-waze {
+  background:var(--orange); color:#000;
+  border:none; border-radius:4px;
+  padding:5px 10px; font-size:11px;
+  font-family:'Share Tech Mono',monospace;
+  cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -263,6 +366,14 @@ body.map-fullscreen #zone-sidebar { display:none; }
     <span id="airport-badge">✈ ЗАРЕЖДА…</span>
     <div class="live-dot"></div>
   </div>
+</div>
+
+<!-- Weather Bar -->
+<div id="weather-bar">
+  <span class="wb-icon" id="wb-icon">🌤</span>
+  <span class="wb-temp" id="wb-temp">—°C</span>
+  <span class="wb-desc" id="wb-desc">Зарежда времето…</span>
+  <span class="wb-boost" id="wb-boost"></span>
 </div>
 
 <div class="timeline-panel">
@@ -297,6 +408,20 @@ body.map-fullscreen #zone-sidebar { display:none; }
   <div id="karyk-list"></div>
 </div>
 
+<!-- Event Alert -->
+<div id="event-alert">
+  <div class="ea-row">
+    <div class="ea-icon" id="ea-icon">🎸</div>
+    <div class="ea-info">
+      <div class="ea-title" id="ea-title">—</div>
+      <div class="ea-sub"   id="ea-sub">—</div>
+      <div class="ea-dist"  id="ea-dist"></div>
+    </div>
+    <button class="ea-waze" id="ea-waze">🚗 Waze</button>
+    <span class="ea-close" onclick="closeEventAlert()">✕</span>
+  </div>
+</div>
+
 <!-- Direction hint (auto arrow to nearest worthy zone) -->
 <div id="direction-hint">
   <div class="dh-row">
@@ -310,7 +435,17 @@ body.map-fullscreen #zone-sidebar { display:none; }
     <span class="dh-close" onclick="closeDirHint()">✕</span>
   </div>
 </div>
+<button id="next90-btn" title="Следващи 90 минути">⏱</button>
 <button id="gps-btn" title="GPS локация">📍</button>
+
+<!-- Next 90 min panel -->
+<div id="next90-panel">
+  <div class="n90-header">
+    ⏱ СЛЕДВАЩИ 90 МИНУТИ
+    <span class="n90-close" onclick="closeNext90()">✕</span>
+  </div>
+  <div id="next90-list"></div>
+</div>
 <button id="karyk-btn" title="Карък Mode — бронзов партньор, тихи зони">🥉<br>К<br>А<br>Р<br>Ъ<br>К</button>
 <div id="karyk-banner">
   <div class="kb-title">🥉 КАРЪК MODE — Бронзов партньор, умни ходове</div>
@@ -779,6 +914,16 @@ function computeScores(hour) {
     }
   }
   if(dz<1) ZONES.forEach(z=>{if(z.id!=='airport') scores[z.id]*=(0.7+0.3*dz);});
+  // Weather boost (дъжд/сняг/буря)
+  if(typeof weatherBoost !== 'undefined' && weatherBoost > 0){
+    ZONES.forEach(z=>{
+      if(['residential','residential_lux','residential_karyk','hospital','university'].includes(z.type)){
+        scores[z.id] = (scores[z.id]||0) + weatherBoost * 0.7;
+      } else if(['mall','hotel','venue'].includes(z.type)){
+        scores[z.id] = (scores[z.id]||0) + weatherBoost * 0.4;
+      }
+    });
+  }
   return{scores,activeEvents};
 }
 
@@ -1524,6 +1669,7 @@ function loadFlights(){
     .catch(()=>{applyFallbackAirport();updateAirportBadge();buildCurve();buildTicker();render(currentHour);});
 }
 
+
 // ═══════════════════════════════════════════════
 // NOMINATIM AUTO-GEOCODE
 // При зареждане browser-ът пита OSM за реалните
@@ -1799,47 +1945,4 @@ let autoTime = true; // false когато потребителят мести s
 
 function syncToDeviceTime(){
   if(!autoTime) return;
-  const h = new Date().getHours() + new Date().getMinutes()/60;
-  const snapped = Math.round(h * 2) / 2; // snap to 0.5h
-  if(Math.abs(snapped - currentHour) >= 0.25){
-    currentHour = snapped;
-    slider.value = snapped;
-    document.getElementById('time-display').textContent = fmtHour(snapped);
-    render(snapped);
-  }
-}
-
-// Обновява се всяка минута
-setInterval(syncToDeviceTime, 60000);
-
-// При ръчно местене на slider-а — спира auto за 10 минути
-slider.addEventListener('input', ()=>{
-  autoTime = false;
-  clearTimeout(slider._autoResume);
-  slider._autoResume = setTimeout(()=>{ autoTime = true; }, 10 * 60000);
-});
-
-// Малък индикатор в часа — показва дали е auto или ръчен
-function updateAutoIndicator(){
-  const el = document.getElementById('time-display');
-  if(el) el.style.opacity = autoTime ? '1' : '0.7';
-}
-setInterval(updateAutoIndicator, 5000);
-
-applyFallbackAirport();
-buildCurve();
-buildCircles();
-buildTicker();
-render(currentHour);
-loadFlights();
-
-// Geocode всички локации от OSM (кешира за 7 дни)
-geocodeZones();
-
-// Re-render canvas after fonts/layout settle
-setTimeout(()=>{ drawSparkline(currentHour); map.invalidateSize(); }, 300);
-window.addEventListener('resize',()=>{ drawSparkline(currentHour); map.invalidateSize(); });
-}); // end DOMContentLoaded
-</script>
-</body>
-</html>
+  cons
