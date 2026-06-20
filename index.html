@@ -250,6 +250,109 @@ body.map-fullscreen #zone-sidebar { display:none; }
 .popup-ev{font-size:10px;color:var(--muted);line-height:1.5;margin-bottom:6px;}
 .popup-nav-btn{background:var(--cyan);color:#000;border:none;border-radius:4px;padding:5px 10px;font-size:11px;font-weight:600;cursor:pointer;width:100%;font-family:'Share Tech Mono',monospace;}
 .popup-nav-btn:hover{background:#00c8e0;}
+
+/* Weather banner */
+#weather-bar {
+  display:none;
+  background:#0a1a2a;
+  border-bottom:1px solid var(--border);
+  padding:5px 14px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  gap:10px;
+  flex-shrink:0;
+}
+#weather-bar .wb-icon { font-size:18px; }
+#weather-bar .wb-temp { color:var(--cyan); }
+#weather-bar .wb-desc { color:var(--muted); flex:1; }
+#weather-bar .wb-boost{ color:#f59e0b; font-size:10px; }
+body.map-fullscreen #weather-bar { display:none !important; }
+
+/* Next 90 min panel */
+#next90-panel {
+  display:none;
+  position:fixed;
+  top:0; left:0; right:0;
+  z-index:2500;
+  background:#070d1af8;
+  border-bottom:2px solid var(--cyan);
+  max-height:60vh;
+  overflow-y:auto;
+  backdrop-filter:blur(8px);
+}
+#next90-panel .n90-header {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px; color:var(--cyan);
+  border-bottom:1px solid var(--border);
+  position:sticky; top:0; background:#070d1af8; z-index:1;
+}
+#next90-panel .n90-close {
+  margin-left:auto; cursor:pointer;
+  color:var(--muted); font-size:16px; padding:0 4px;
+}
+.n90-item {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 14px; border-bottom:1px solid #0e1d30;
+}
+.n90-time {
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px; color:var(--amber); min-width:48px;
+}
+.n90-icon { font-size:16px; }
+.n90-info { flex:1; }
+.n90-name { font-size:12px; color:var(--text); }
+.n90-zone { font-size:10px; color:var(--muted); }
+.n90-score{
+  font-family:'Share Tech Mono',monospace;
+  font-size:13px; font-weight:bold;
+}
+
+/* Next 90 button */
+#next90-btn {
+  position:fixed; right:12px; bottom:230px; z-index:1500;
+  width:44px; height:44px; border-radius:50%;
+  background:var(--surface); border:1px solid var(--border);
+  color:var(--amber); font-size:18px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 2px 12px rgba(0,0,0,.5);
+}
+#next90-btn.active { background:#1a1400; border-color:var(--amber); }
+body.map-fullscreen #next90-btn { display:none; }
+
+/* Event alert */
+@keyframes alert-pulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.85; transform:scale(1.02); }
+}
+#event-alert {
+  display:none;
+  position:fixed; bottom:0; left:0; right:0;
+  z-index:2800;
+  background:#1a0800f5;
+  border-top:2px solid var(--orange);
+  padding:10px 14px;
+  font-family:'Share Tech Mono',monospace;
+  animation:alert-pulse 2s ease-in-out infinite;
+}
+#event-alert .ea-row { display:flex; align-items:center; gap:10px; }
+#event-alert .ea-icon { font-size:28px; }
+#event-alert .ea-info { flex:1; }
+#event-alert .ea-title{ font-size:13px; color:var(--orange); font-weight:bold; }
+#event-alert .ea-sub  { font-size:11px; color:var(--muted); margin-top:2px; }
+#event-alert .ea-dist { font-size:11px; color:var(--cyan); }
+#event-alert .ea-close{ cursor:pointer; color:var(--muted); font-size:18px; padding:4px; }
+#event-alert .ea-waze {
+  background:var(--orange); color:#000;
+  border:none; border-radius:4px;
+  padding:5px 10px; font-size:11px;
+  font-family:'Share Tech Mono',monospace;
+  cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -263,6 +366,14 @@ body.map-fullscreen #zone-sidebar { display:none; }
     <span id="airport-badge">✈ ЗАРЕЖДА…</span>
     <div class="live-dot"></div>
   </div>
+</div>
+
+<!-- Weather Bar -->
+<div id="weather-bar">
+  <span class="wb-icon" id="wb-icon">🌤</span>
+  <span class="wb-temp" id="wb-temp">—°C</span>
+  <span class="wb-desc" id="wb-desc">Зарежда времето…</span>
+  <span class="wb-boost" id="wb-boost"></span>
 </div>
 
 <div class="timeline-panel">
@@ -297,6 +408,20 @@ body.map-fullscreen #zone-sidebar { display:none; }
   <div id="karyk-list"></div>
 </div>
 
+<!-- Event Alert -->
+<div id="event-alert">
+  <div class="ea-row">
+    <div class="ea-icon" id="ea-icon">🎸</div>
+    <div class="ea-info">
+      <div class="ea-title" id="ea-title">—</div>
+      <div class="ea-sub"   id="ea-sub">—</div>
+      <div class="ea-dist"  id="ea-dist"></div>
+    </div>
+    <button class="ea-waze" id="ea-waze">🚗 Waze</button>
+    <span class="ea-close" onclick="closeEventAlert()">✕</span>
+  </div>
+</div>
+
 <!-- Direction hint (auto arrow to nearest worthy zone) -->
 <div id="direction-hint">
   <div class="dh-row">
@@ -310,7 +435,17 @@ body.map-fullscreen #zone-sidebar { display:none; }
     <span class="dh-close" onclick="closeDirHint()">✕</span>
   </div>
 </div>
+<button id="next90-btn" title="Следващи 90 минути">⏱</button>
 <button id="gps-btn" title="GPS локация">📍</button>
+
+<!-- Next 90 min panel -->
+<div id="next90-panel">
+  <div class="n90-header">
+    ⏱ СЛЕДВАЩИ 90 МИНУТИ
+    <span class="n90-close" onclick="closeNext90()">✕</span>
+  </div>
+  <div id="next90-list"></div>
+</div>
 <button id="karyk-btn" title="Карък Mode — бронзов партньор, тихи зони">🥉<br>К<br>А<br>Р<br>Ъ<br>К</button>
 <div id="karyk-banner">
   <div class="kb-title">🥉 КАРЪК MODE — Бронзов партньор, умни ходове</div>
@@ -1524,6 +1659,271 @@ function loadFlights(){
     .catch(()=>{applyFallbackAirport();updateAirportBadge();buildCurve();buildTicker();render(currentHour);});
 }
 
+
+// ═══════════════════════════════════════════════
+// WEATHER ENGINE
+// ═══════════════════════════════════════════════
+// ИНСТРУКЦИИ: Вземи безплатен API ключ от openweathermap.org
+// Регистрирай се → API Keys → копирай ключа тук:
+const OWM_API_KEY = 'YOUR_OWM_API_KEY'; // ← замени с твоя ключ
+
+const SOFIA_LAT = 42.6977, SOFIA_LNG = 23.3219;
+let weatherBoost = 0;
+let weatherData  = null;
+let alertedEvents = new Set(); // за да не alert-ва два пъти
+
+function weatherIcon(id, main){
+  if(main==='Rain'||main==='Drizzle') return '🌧';
+  if(main==='Thunderstorm')           return '⛈';
+  if(main==='Snow')                   return '❄️';
+  if(main==='Fog'||main==='Mist')    return '🌫';
+  if(id>=801&&id<=804)                return '⛅';
+  return '☀️';
+}
+
+function weatherBoostCalc(weather, wind){
+  let boost = 0;
+  if(!weather) return boost;
+  const main = weather.main;
+  // Дъждът е най-голям demand генератор
+  if(main==='Rain'      ) boost = 2.0;
+  if(main==='Drizzle'   ) boost = 1.2;
+  if(main==='Thunderstorm') boost = 2.8;
+  if(main==='Snow'      ) boost = 1.8;
+  if(main==='Fog'||main==='Mist') boost = 0.8;
+  // Силен вятър
+  if(wind > 10) boost += 0.5;
+  return boost;
+}
+
+async function loadWeather(){
+  if(OWM_API_KEY === 'YOUR_OWM_API_KEY'){
+    // No key — show placeholder
+    document.getElementById('wb-desc').textContent = 'Добави OWM API ключ за времето';
+    document.getElementById('weather-bar').style.display = 'flex';
+    return;
+  }
+  try{
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${SOFIA_LAT}&lon=${SOFIA_LNG}&units=metric&lang=bg&appid=${OWM_API_KEY}`;
+    const r = await fetch(url);
+    const d = await r.json();
+    if(d.cod !== 200) throw new Error(d.message);
+
+    weatherData = d;
+    const w    = d.weather[0];
+    const temp = Math.round(d.main.temp);
+    const wind = d.wind?.speed || 0;
+    weatherBoost = weatherBoostCalc(w, wind);
+
+    const bar = document.getElementById('weather-bar');
+    bar.style.display = 'flex';
+    document.getElementById('wb-icon').textContent = weatherIcon(w.id, w.main);
+    document.getElementById('wb-temp').textContent = `${temp}°C`;
+    document.getElementById('wb-desc').textContent = w.description;
+
+    if(weatherBoost > 0){
+      document.getElementById('wb-boost').textContent =
+        `+${weatherBoost.toFixed(1)} demand (такситата печелят!)`;
+      bar.style.borderBottomColor = '#00e5ff';
+    } else {
+      document.getElementById('wb-boost').textContent = '';
+    }
+
+    // Rebuild curve with weather boost and re-render
+    buildCurve();
+    render(currentHour);
+  } catch(e){
+    console.warn('Weather load failed:', e);
+  }
+}
+
+// Refresh weather every 10 min
+setInterval(loadWeather, 10*60000);
+loadWeather();
+
+// ═══════════════════════════════════════════════
+// NEXT 90 MINUTES PANEL
+// ═══════════════════════════════════════════════
+let next90Open = false;
+
+document.getElementById('next90-btn').addEventListener('click',()=>{
+  next90Open = !next90Open;
+  document.getElementById('next90-btn').classList.toggle('active', next90Open);
+  const panel = document.getElementById('next90-panel');
+  if(next90Open){
+    buildNext90();
+    panel.style.display = 'block';
+  } else {
+    panel.style.display = 'none';
+  }
+});
+
+function closeNext90(){
+  next90Open = false;
+  document.getElementById('next90-btn').classList.remove('active');
+  document.getElementById('next90-panel').style.display = 'none';
+}
+window.closeNext90 = closeNext90;
+
+function buildNext90(){
+  const now = new Date();
+  const h   = now.getHours() + now.getMinutes()/60;
+  const end = h + 1.5; // 90 min
+
+  // Collect all events ending in next 90 min
+  const upcoming = EVENTS
+    .filter(ev => dayMatches(ev) && !ev._fromFlight)
+    .filter(ev => ev.endHour > h && ev.endHour <= end)
+    .sort((a,b)=>a.endHour-b.endHour);
+
+  // Also find zones whose score peaks in next 90 min
+  const peakZones = [];
+  for(let t=h+0.25; t<=end; t+=0.25){
+    const {scores} = computeScores(t);
+    Object.entries(scores).forEach(([zid,s])=>{
+      const sCur = computeScores(h).scores[zid]||0;
+      if(s - sCur > 1.5){ // big jump coming
+        const z = ZONES.find(x=>x.id===zid);
+        if(z && !peakZones.find(p=>p.zid===zid)){
+          peakZones.push({zid, z, s, t, rise: s-sCur});
+        }
+      }
+    });
+  }
+
+  const list = document.getElementById('next90-list');
+  let html = '';
+
+  if(upcoming.length===0 && peakZones.length===0){
+    list.innerHTML='<div style="padding:14px;color:var(--muted);font-size:12px;font-family:Share Tech Mono,monospace">Няма значими events в следващите 90 мин</div>';
+    return;
+  }
+
+  // Events
+  upcoming.forEach(ev=>{
+    const z = ZONES.find(x=>x.id===ev.zone);
+    if(!z) return;
+    const minLeft = Math.round((ev.endHour - h)*60);
+    const c = demandColor(ev.boost, z.type);
+    html += `<div class="n90-item">
+      <div class="n90-time">${fmtHour(ev.endHour)}</div>
+      <div class="n90-icon">${z.icon}</div>
+      <div class="n90-info">
+        <div class="n90-name">${ev.name}</div>
+        <div class="n90-zone">${z.name.split('(')[0].trim()} · след ${minLeft} мин</div>
+      </div>
+      <div class="n90-score" style="color:${c.fill}">+${ev.boost.toFixed(1)}</div>
+    </div>`;
+  });
+
+  // Rising zones
+  peakZones.slice(0,5).forEach(({z,s,t,rise})=>{
+    const minLeft = Math.round((t-h)*60);
+    const c = demandColor(s, z.type);
+    html += `<div class="n90-item" style="background:#0a1520">
+      <div class="n90-time">${fmtHour(t)}</div>
+      <div class="n90-icon">📈</div>
+      <div class="n90-info">
+        <div class="n90-name">${z.icon} ${z.name.split('(')[0].trim()}</div>
+        <div class="n90-zone">Demand расте · след ${minLeft} мин</div>
+      </div>
+      <div class="n90-score" style="color:${c.fill}">↑${rise.toFixed(1)}</div>
+    </div>`;
+  });
+
+  list.innerHTML = html || '<div style="padding:14px;color:var(--muted)">Спокойно в следващите 90 мин</div>';
+}
+
+// ═══════════════════════════════════════════════
+// EVENT ALERT — 15-30 мин преди край на голям event
+// ═══════════════════════════════════════════════
+let eventAlertDismissed = false;
+let currentAlertEvent   = null;
+
+function closeEventAlert(){
+  eventAlertDismissed = true;
+  if(currentAlertEvent) alertedEvents.add(currentAlertEvent);
+  document.getElementById('event-alert').style.display = 'none';
+}
+window.closeEventAlert = closeEventAlert;
+
+function checkEventAlerts(){
+  if(eventAlertDismissed) return;
+  const now   = new Date();
+  const h     = now.getHours() + now.getMinutes()/60;
+  const WINDOW_MIN = 0.25; // 15 min
+  const WINDOW_MAX = 0.50; // 30 min
+  const MIN_BOOST  = 2.0;  // само важни events
+
+  const upcoming = EVENTS
+    .filter(ev => dayMatches(ev) && !ev._fromFlight)
+    .filter(ev => {
+      const diff = ev.endHour - h;
+      return diff >= WINDOW_MIN && diff <= WINDOW_MAX
+          && ev.boost >= MIN_BOOST
+          && !alertedEvents.has(ev.name + ev.endHour);
+    })
+    .sort((a,b)=> a.endHour - b.endHour);
+
+  if(upcoming.length === 0){
+    document.getElementById('event-alert').style.display = 'none';
+    return;
+  }
+
+  const ev = upcoming[0];
+  const z  = ZONES.find(x=>x.id===ev.zone);
+  if(!z) return;
+  currentAlertEvent = ev.name + ev.endHour;
+
+  const minLeft = Math.round((ev.endHour - h)*60);
+
+  document.getElementById('ea-icon').textContent  = z.icon;
+  document.getElementById('ea-title').textContent =
+    `${ev.name} — след ${minLeft} мин!`;
+
+  let distTxt = '';
+  if(userLat !== null){
+    const d = haversine(userLat, userLng, z.lat, z.lng);
+    distTxt = `📏 ${d<1000 ? Math.round(d)+'м' : (d/1000).toFixed(1)+'км'} от теб`;
+  }
+  document.getElementById('ea-sub').textContent  =
+    `${z.name.split('(')[0].trim()} · ${fmtHour(ev.endHour)} край`;
+  document.getElementById('ea-dist').textContent = distTxt;
+
+  // Waze button
+  document.getElementById('ea-waze').onclick = ()=>{
+    window.open(`https://waze.com/ul?q=${encodeURIComponent(z.wazeName||z.name)}&navigate=yes`,'_blank');
+  };
+
+  document.getElementById('event-alert').style.display = 'block';
+  eventAlertDismissed = false;
+}
+
+// Check every 60 seconds
+setInterval(checkEventAlerts, 60000);
+checkEventAlerts();
+
+// ═══════════════════════════════════════════════
+// APPLY WEATHER BOOST TO computeScores
+// ═══════════════════════════════════════════════
+const _origComputeScores = computeScores;
+function computeScores(hour){
+  const result = _origComputeScores(hour);
+  if(weatherBoost <= 0) return result;
+
+  // Rain/snow boosts residential and leisure zones — people need taxis
+  Object.keys(result.scores).forEach(zid=>{
+    const z = ZONES.find(x=>x.id===zid);
+    if(!z) return;
+    if(['residential','residential_lux','residential_karyk','hospital','university'].includes(z.type)){
+      result.scores[zid] += weatherBoost * 0.7;
+    } else if(z.type==='mall'||z.type==='hotel'||z.type==='venue'){
+      result.scores[zid] += weatherBoost * 0.4;
+    }
+  });
+  return result;
+}
+
 // ═══════════════════════════════════════════════
 // NOMINATIM AUTO-GEOCODE
 // При зареждане browser-ът пита OSM за реалните
@@ -1562,284 +1962,4 @@ const NOMINATIM_QUERIES = {
   vasil_levski:  "National Stadium Vasil Levski Sofia Bulgaria",
   lozenets_wt:   "Vodna kula Lozenets Sofia Bulgaria",
   pirogov:       "UMBALSM Pirogov Totleben 21 Sofia Bulgaria",
-  alexand:       "UMBAL Aleksandrovska Sofia Bulgaria",
-  vma:           "Voenno-medicinska akademia Sofia Bulgaria",
-  tokuda:        "Tokuda Hospital Sofia Bulgaria",
-  unss:          "UNSS University National World Economy Sofia Bulgaria",
-  nbu:           "New Bulgarian University Sofia Bulgaria",
-  tu:            "Technical University Sofia Darvenitsa Bulgaria",
-  su:            "Sofia University St Kliment Ohridski Bulgaria",
-  simenovo:      "Hill Side Sofia Simeonovsko shose 97 Bulgaria",
-  manast:        "Manastirski livadi Sofia Bulgaria",
-  boyana:        "Boyana Sofia Bulgaria",
-  vitosha_vz:    "ЖК Камбаните Sofia Bulgaria",
-  bulgaria_towers:"Bulgaria Towers Todor Kableshkov Sofia Bulgaria",
-};
-
-const CACHE_KEY = 'sofia_taxi_coords_v3';
-const CACHE_TTL  = 7 * 24 * 3600 * 1000; // 7 дни
-
-async function geocodeZones() {
-  // Load cache
-  let cache = {};
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Date.now() - parsed.ts < CACHE_TTL) cache = parsed.coords;
-    }
-  } catch(e) {}
-
-  const zMap = {};
-  ZONES.forEach(z => { zMap[z.id] = z; });
-
-  // Geocode only missing ones
-  const missing = ZONES.filter(z => !cache[z.id] && NOMINATIM_QUERIES[z.id]);
-  if (missing.length === 0) {
-    applyGeoCache(cache, zMap);
-    return;
-  }
-
-  // Show status
-  const badge = document.getElementById('airport-badge');
-  const origText = badge.textContent;
-
-  let i = 0;
-  for (const z of missing) {
-    const q = NOMINATIM_QUERIES[z.id];
-    try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
-      const res = await fetch(url, { headers: {'User-Agent': 'SofiaTaxiDemand/1.0'} });
-      const data = await res.json();
-      if (data && data[0]) {
-        cache[z.id] = { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
-      }
-    } catch(e) { /* skip */ }
-    i++;
-    badge.textContent = `📡 ${i}/${missing.length}`;
-    await new Promise(r => setTimeout(r, 1100)); // Nominatim: max 1 req/sec
-  }
-
-  // Save cache
-  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), coords: cache })); } catch(e){}
-
-  badge.textContent = origText;
-  applyGeoCache(cache, zMap);
-}
-
-function applyGeoCache(cache, zMap) {
-  let updated = 0;
-  for (const [id, coords] of Object.entries(cache)) {
-    if (zMap[id] && coords) {
-      zMap[id].lat = coords.lat;
-      zMap[id].lng = coords.lng;
-      updated++;
-    }
-  }
-  if (updated > 0) {
-    // Rebuild circles with corrected coords
-    for (const [id, circle] of Object.entries(circleMap)) {
-      const z = zMap[id];
-      if (z) circle.setLatLng([z.lat, z.lng]);
-    }
-    render(currentHour);
-  }
-}
-
-// ── Legend toggle ──
-// ── КАРЪК MODE ──
-// Типове зони където ЗЛАТНИТЕ ПАРТНЬОРИ не отиват
-const KARYK_PREFER = ['hospital','residential','residential_lux'];
-const KARYK_AVOID  = ['airport','mall','hotel','office','university','nightlife','transit','venue','theatre','cinema'];
-
-let karykMode = false;
-
-const karykBtn    = document.getElementById('karyk-btn');
-const karykBanner = document.getElementById('karyk-banner');
-const karykHint   = document.getElementById('karyk-hint');
-
-karykBtn.addEventListener('click', ()=>{
-  karykMode = !karykMode;
-  karykBtn.classList.toggle('active', karykMode);
-  document.body.classList.toggle('karyk-active', karykMode);
-  karykBanner.style.display = karykMode ? 'block' : 'none';
-  if(karykMode) updateKarykMode();
-  render(currentHour);
-});
-
-// ═══════════════════════════════════════════
-// КАРЪК SCORE ALGORITHM
-// Обратна логика: добро за бронзов =
-//   висок demand + нисък конкурентен натиск
-// ═══════════════════════════════════════════
-function computeKarykScore(zid, scores){
-  const z = ZONES.find(x=>x.id===zid);
-  if(!z) return 0;
-  const demand = scores[zid] || 0;
-
-  // Base: demand е добре — клиенти има
-  let ks = demand;
-
-  // БОНУС по тип — колко нежелан е от златните
-  const typeBonus = {
-    residential_karyk: +1.5,  // невидими квартали — никой не ги знае
-    residential_lux:   +1.2,  // скъпи жк — богати клиенти, малко такси
-    residential:       +1.0,  // обикновени жк — тихи
-    hospital:          +0.8,  // болници — редовен поток, малко конкуренция
-    leisure:           +0.5,  // паркове, зоопарк
-    university:        -0.3,  // конкурентно (студентски таксита)
-    nightlife:         -0.2,  // вечер е OK, но конкурентно
-    office:            -0.5,  // офисите са на много такси радари
-    mall:              -0.8,  // молове = тълпа от таксита
-    hotel:             -0.8,  // хотели = злато тръпне там
-    airport:           -1.5,  // летище = само злато
-    transit:           -0.6,  // гари — пълно с конкуренция
-    venue:             -0.3,  // театри/арени — временна конкуренция
-    theatre:           -0.2,
-    cinema:            -0.1,
-    traffic:            0,
-  };
-  ks += (typeBonus[z.type] || 0);
-
-  // БОНУС ако зоната е "тъмна" в нормален мод (demand < 1.0)
-  // = никой не обръща внимание там, но клиенти има
-  if(demand < 1.0) ks += 0.8;
-
-  // БОНУС за отдалеченост от топ-3 конкурентни зони
-  // (летище, Сердика, Business Park)
-  const hotZones = ['airport','serdika','bpark','the_mall','hotels_ctr'];
-  if(!hotZones.includes(zid)) ks += 0.3;
-
-  // Нормализираме 0–5
-  return Math.max(0, Math.min(5, ks));
-}
-
-function karykColor(ks){
-  if(ks >= 4.0) return {fill:'#ff6b00', stroke:'#ff9040', label:'🔥 Карък ПИК'};
-  if(ks >= 3.0) return {fill:'#f97316', stroke:'#ffaa55', label:'▲ Отлично'};
-  if(ks >= 2.0) return {fill:'#fbbf24', stroke:'#ffd060', label:'Добро'};
-  if(ks >= 1.0) return {fill:'#a3a300', stroke:'#d4d400', label:'Слабо'};
-  return             {fill:'#1a1030', stroke:'#2a2050', label:'Избягвай'};
-}
-
-function updateKarykMode(){
-  if(!karykMode) return;
-  const {scores} = computeScores(currentHour);
-
-  // Compute Karyk scores for all non-hospital, non-traffic zones
-  const ranked = ZONES
-    .filter(z => z.type!=='traffic' && z.type!=='hospital')
-    .map(z => ({ z, ks: computeKarykScore(z.id, scores), demand: scores[z.id]||0 }))
-    .sort((a,b) => b.ks - a.ks);
-
-  const top = ranked[0];
-  if(top){
-    const c = karykColor(top.ks);
-    karykHint.innerHTML =
-      `🥉 <span style="color:${c.fill}">${top.z.icon} ${top.z.name.split('(')[0].trim()}</span>` +
-      ` (К:${top.ks.toFixed(1)}) — ${c.label}`;
-  }
-
-  // Re-color circles by Karyk score
-  ZONES.forEach(z=>{
-    if(z.type==='traffic' || z.type==='hospital') return;
-    const ks = computeKarykScore(z.id, scores);
-    const c  = karykColor(ks);
-
-    let opts;
-    if(z.type==='residential_karyk'){
-      // Always show in Karyk
-      opts = {color:c.stroke, fillColor:c.fill,
-              fillOpacity: 0.3 + ks*0.1, weight:2.5, opacity:0.9};
-    } else {
-      opts = {color:c.stroke, fillColor:c.fill,
-              fillOpacity: Math.max(0.08, 0.15 + ks*0.1),
-              weight: ks>=3?2:1, opacity: ks>=2?0.8:0.3};
-    }
-    circleMap[z.id]?.setStyle(opts);
-  });
-}
-
-// ── Fullscreen ──
-let isFullscreen = false;
-const fsBtn = document.getElementById('fs-btn');
-fsBtn.addEventListener('click', () => {
-  isFullscreen = !isFullscreen;
-  document.body.classList.toggle('map-fullscreen', isFullscreen);
-  fsBtn.textContent = isFullscreen ? '✕' : '⛶';
-  fsBtn.classList.toggle('active', isFullscreen);
-  setTimeout(() => { map.invalidateSize(); drawSparkline(currentHour); }, 200);
-});
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && isFullscreen) fsBtn.click();
-});
-
-// Slider — ръчно местене
-const slider=document.getElementById('time-slider');
-slider.addEventListener('input',()=>{
-  autoTime = false;
-  clearTimeout(slider._autoResume);
-  slider._autoResume = setTimeout(()=>{ autoTime = true; syncToDeviceTime(); }, 10*60000);
-  currentHour=parseFloat(slider.value);
-  document.getElementById('time-display').textContent=fmtHour(currentHour);
-  render(currentHour);
-  if(navTarget&&userLat!==null) updateNavDisplay();
-});
-
-// ═══════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════
-const nowH=new Date().getHours()+new Date().getMinutes()/60;
-const clamped=Math.min(24,Math.max(6,Math.round(nowH*2)/2));
-slider.value=clamped; currentHour=clamped;
-document.getElementById('time-display').textContent=fmtHour(clamped);
-
-// ── Автоматично следване на часа от устройството ──
-let autoTime = true; // false когато потребителят мести slider-а ръчно
-
-function syncToDeviceTime(){
-  if(!autoTime) return;
-  const h = new Date().getHours() + new Date().getMinutes()/60;
-  const snapped = Math.round(h * 2) / 2; // snap to 0.5h
-  if(Math.abs(snapped - currentHour) >= 0.25){
-    currentHour = snapped;
-    slider.value = snapped;
-    document.getElementById('time-display').textContent = fmtHour(snapped);
-    render(snapped);
-  }
-}
-
-// Обновява се всяка минута
-setInterval(syncToDeviceTime, 60000);
-
-// При ръчно местене на slider-а — спира auto за 10 минути
-slider.addEventListener('input', ()=>{
-  autoTime = false;
-  clearTimeout(slider._autoResume);
-  slider._autoResume = setTimeout(()=>{ autoTime = true; }, 10 * 60000);
-});
-
-// Малък индикатор в часа — показва дали е auto или ръчен
-function updateAutoIndicator(){
-  const el = document.getElementById('time-display');
-  if(el) el.style.opacity = autoTime ? '1' : '0.7';
-}
-setInterval(updateAutoIndicator, 5000);
-
-applyFallbackAirport();
-buildCurve();
-buildCircles();
-buildTicker();
-render(currentHour);
-loadFlights();
-
-// Geocode всички локации от OSM (кешира за 7 дни)
-geocodeZones();
-
-// Re-render canvas after fonts/layout settle
-setTimeout(()=>{ drawSparkline(currentHour); map.invalidateSize(); }, 300);
-window.addEventListener('resize',()=>{ drawSparkline(currentHour); map.invalidateSize(); });
-}); // end DOMContentLoaded
-</script>
-</body>
-</html>
+  alexand
