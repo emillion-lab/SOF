@@ -196,6 +196,46 @@ body.map-fullscreen #fs-btn  { bottom:70px; }
 .zone-sub   { font-size:11px; color:var(--muted); }
 .zone-score { font-family:'Share Tech Mono',monospace; font-size:15px; font-weight:bold; }
 
+/* ── КАРЪК SIDEBAR ── */
+#karyk-sidebar {
+  display:none;
+  background:#100808;
+  border-top:2px solid #cd7f32;
+  max-height:40vh;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+#karyk-sidebar .sidebar-title {
+  background:#100808;
+  color:#cd7f32;
+  border-bottom:1px solid #3a1a00;
+}
+.karyk-item {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 12px; border-bottom:1px solid #1a0a00;
+  cursor:pointer; transition:background .12s;
+}
+.karyk-item:hover { background:#1a0e04; }
+.karyk-dot {
+  width:11px; height:11px; border-radius:50%;
+  background:#cd7f32; border:1px solid #ffa040;
+  flex-shrink:0;
+}
+.karyk-rank {
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px; color:#7c4a1a; min-width:20px;
+}
+.karyk-name { font-size:13px; flex:1; color:#e8c090; }
+.karyk-sub  { font-size:10px; color:#7c4a1a; }
+.karyk-score {
+  font-family:'Share Tech Mono',monospace;
+  font-size:14px; font-weight:bold; color:#cd7f32;
+}
+
+/* When karyk active — hide normal sidebar, show karyk sidebar */
+body.karyk-active #zone-sidebar  { display:none; }
+body.karyk-active #karyk-sidebar { display:block; }
+
 /* fullscreen hides sidebar */
 body.map-fullscreen #zone-sidebar { display:none; }
 
@@ -249,6 +289,12 @@ body.map-fullscreen #zone-sidebar { display:none; }
 <div id="zone-sidebar">
   <div class="sidebar-title">▣ Зони по приоритет</div>
   <div id="zone-list"></div>
+</div>
+
+<!-- КАРЪК sidebar -->
+<div id="karyk-sidebar">
+  <div class="sidebar-title">🥉 КАРЪК ЗОНИ — само за бронзови</div>
+  <div id="karyk-list"></div>
 </div>
 
 <!-- Direction hint (auto arrow to nearest worthy zone) -->
@@ -1018,21 +1064,55 @@ function render(hour){
 
   // ── ZONE LIST SIDEBAR ──
   const zList=document.getElementById('zone-list');
-  if(zList){
-    zList.innerHTML=sorted.map(([zid,score])=>{
-      const z=ZONES.find(x=>x.id===zid); if(!z) return '';
-      const c=demandColor(score, z.type);
-      const ev=(activeEvents[zid]||[]);
-      const sub=ev.length?ev[0].name:'';
-      return `<div class="zone-item" onclick="selectZoneFromList('${zid}')" id="li-${zid}">
-        <div class="zone-dot" style="background:${c.fill}"></div>
-        <div style="flex:1;min-width:0">
-          <div class="zone-name">${z.icon} ${z.name}</div>
-          ${sub?`<div class="zone-sub">${sub}</div>`:''}
-        </div>
-        <div class="zone-score" style="color:${c.fill}">${score.toFixed(1)}</div>
-      </div>`;
-    }).join('');
+  if(zList && !karykMode){
+    // Normal mode: all zones sorted by score, skip residential_karyk
+    zList.innerHTML=sorted
+      .filter(([zid])=>{ const z=ZONES.find(x=>x.id===zid); return z && z.type!=='residential_karyk'; })
+      .map(([zid,score])=>{
+        const z=ZONES.find(x=>x.id===zid); if(!z) return '';
+        const c=demandColor(score, z.type);
+        const ev=(activeEvents[zid]||[]);
+        const sub=ev.length?ev[0].name:'';
+        return `<div class="zone-item" onclick="selectZoneFromList('${zid}')" id="li-${zid}">
+          <div class="zone-dot" style="background:${c.fill}"></div>
+          <div style="flex:1;min-width:0">
+            <div class="zone-name">${z.icon} ${z.name}</div>
+            ${sub?`<div class="zone-sub">${sub}</div>`:''}
+          </div>
+          <div class="zone-score" style="color:${c.fill}">${score.toFixed(1)}</div>
+        </div>`;
+      }).join('');
+  }
+
+  // ── КАРЪК SIDEBAR — само бронзови зони ──
+  const kList=document.getElementById('karyk-list');
+  if(kList && karykMode){
+    // Karyk zones = residential_karyk + hospital + residential + residential_lux
+    // Sorted by score desc, exclude avoided types
+    const karykZones = sorted.filter(([zid])=>{
+      const z=ZONES.find(x=>x.id===zid);
+      return z && (KARYK_PREFER.includes(z.type) || z.type==='residential_karyk');
+    });
+
+    if(karykZones.length===0){
+      kList.innerHTML='<div style="padding:12px;color:#7c4a1a;font-size:12px;font-family:Share Tech Mono,monospace">Няма активни бронзови зони</div>';
+    } else {
+      kList.innerHTML=karykZones.map(([zid,score],idx)=>{
+        const z=ZONES.find(x=>x.id===zid); if(!z) return '';
+        const ev=(activeEvents[zid]||[]);
+        const sub=ev.length?ev[0].name:'';
+        const isGhost=z.type==='residential_karyk';
+        return `<div class="karyk-item" onclick="selectZoneFromList('${zid}')">
+          <div class="karyk-rank">#${idx+1}</div>
+          <div class="karyk-dot" style="background:${isGhost?'#cd7f32':'#22c55e'};border-color:${isGhost?'#ffa040':'#55ee88'}"></div>
+          <div style="flex:1;min-width:0">
+            <div class="karyk-name">${isGhost?'🥉':z.icon} ${z.name}</div>
+            ${sub?`<div class="karyk-sub">${sub}</div>`:''}
+          </div>
+          <div class="karyk-score">${score.toFixed(1)}</div>
+        </div>`;
+      }).join('');
+    }
   }
 
   // Update nav and direction hint
@@ -1496,6 +1576,7 @@ const karykHint   = document.getElementById('karyk-hint');
 karykBtn.addEventListener('click', ()=>{
   karykMode = !karykMode;
   karykBtn.classList.toggle('active', karykMode);
+  document.body.classList.toggle('karyk-active', karykMode);
   karykBanner.style.display = karykMode ? 'block' : 'none';
   if(karykMode) updateKarykMode();
   render(currentHour);
