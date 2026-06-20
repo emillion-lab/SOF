@@ -128,26 +128,28 @@ body.map-fullscreen #fs-btn  { bottom:70px; }
 
 /* ── КАРЪК MODE ── */
 #karyk-btn {
-  position:fixed; left:12px; top:50%; transform:translateY(-50%);
+  position:fixed; left:8px; bottom:180px;
   z-index:1500; writing-mode:vertical-rl; text-orientation:mixed;
-  background:#0d1929; border:1px solid #182d47;
-  color:#4a6080; font-family:'Share Tech Mono',monospace;
-  font-size:11px; letter-spacing:2px;
-  padding:12px 6px; border-radius:6px; cursor:pointer;
+  background:#1a100a; border:2px solid #7c4a1a;
+  color:#cd7f32; font-family:'Share Tech Mono',monospace;
+  font-size:10px; letter-spacing:2px;
+  padding:10px 5px; border-radius:6px; cursor:pointer;
   transition:all .3s; white-space:nowrap;
+  box-shadow:0 0 6px #7c4a1a44;
 }
+#karyk-btn:hover { border-color:#cd7f32; color:#e8a050; }
 #karyk-btn.active {
-  background:#1a0a2e; border-color:#a855f7;
-  color:#d08dff; box-shadow:0 0 12px #a855f744;
+  background:#2a1a08; border-color:#cd7f32;
+  color:#ffa040; box-shadow:0 0 14px #cd7f3266;
 }
 #karyk-banner {
   display:none; position:fixed; top:0; left:0; right:0; z-index:3000;
-  background:#0d0520f0; border-bottom:2px solid #a855f7;
+  background:#1a0e04f5; border-bottom:2px solid #cd7f32;
   padding:8px 14px; font-family:'Share Tech Mono',monospace;
-  font-size:11px; color:#d08dff; backdrop-filter:blur(6px);
+  font-size:11px; color:#cd7f32; backdrop-filter:blur(6px);
 }
-#karyk-banner .kb-title { font-size:13px; color:#a855f7; margin-bottom:2px; }
-#karyk-banner .kb-hint  { font-size:10px; color:#6040a0; }
+#karyk-banner .kb-title { font-size:13px; color:#ffa040; margin-bottom:2px; }
+#karyk-banner .kb-hint  { font-size:10px; color:#9a6020; }
 
 /* ── DIRECTION ARROW overlay ── */
 #direction-hint {
@@ -263,10 +265,10 @@ body.map-fullscreen #zone-sidebar { display:none; }
   </div>
 </div>
 <button id="gps-btn" title="GPS локация">📍</button>
-<button id="karyk-btn" title="Карък Mode — места без конкуренция">К<br>А<br>Р<br>Ъ<br>К</button>
+<button id="karyk-btn" title="Карък Mode — бронзов партньор, тихи зони">🥉<br>К<br>А<br>Р<br>Ъ<br>К</button>
 <div id="karyk-banner">
-  <div class="kb-title">🃏 КАРЪК MODE — Бягай от тълпата</div>
-  <div class="kb-hint" id="karyk-hint">Търся тихи зони без конкуренция…</div>
+  <div class="kb-title">🥉 КАРЪК MODE — Бронзов партньор, умни ходове</div>
+  <div class="kb-hint" id="karyk-hint">Анализирам тихи зони…</div>
 </div>
 <button id="fs-btn"  title="Fullscreen карта">⛶</button>
 
@@ -916,7 +918,14 @@ function updateCircles(){
       if(marker&&info) marker.setIcon(makeTrafficIcon(info, s>=1.5));
       return;
     }
-    const opts=getScoreColor(s, z.type);
+    let opts = getScoreColor(s, z.type);
+    if(karykMode){
+      if(KARYK_AVOID.includes(z.type)){
+        opts = {color:'#1a1030', fillColor:'#110820', fillOpacity:0.15, weight:1, opacity:0.25};
+      } else if(KARYK_PREFER.includes(z.type)){
+        opts = {...opts, fillOpacity: Math.min(0.85,(opts.fillOpacity||0.4)*1.7), weight:2.5};
+      }
+    }
     circleMap[z.id]?.setStyle(opts);
   });
 }
@@ -1496,27 +1505,11 @@ function updateKarykMode(){
     const top = gems[0];
     const c   = demandColor(top.s, top.z.type);
     karykHint.innerHTML =
-      `Иди при <span style="color:${c.fill}">${top.z.icon} ${top.z.name.split('(')[0].trim()}</span> (${top.s.toFixed(1)}) ` +
-      `· Избягвай: ${crowded.join(', ')}`;
+      `🥉 Иди при <span style="color:${c.fill}">${top.z.icon} ${top.z.name.split('(')[0].trim()}</span> (${top.s.toFixed(1)})` +
+      ` · Золдните чакат на: ${crowded.join(', ')} — ти не`;
   } else {
-    karykHint.textContent = 'Всички тихи зони са слаби в момента…';
+    karykHint.textContent = '🥉 Тихо навсякъде — почини, бронзовият има право';
   }
-}
-
-// Override circle colors in Karyk mode — dim crowded, highlight hidden gems
-const _origGetScoreColor = getScoreColor;
-function getScoreColor(score, type){
-  if(!karykMode) return _origGetScoreColor(score, type);
-  if(KARYK_AVOID.includes(type)){
-    // Dim the tълпа zones
-    return { color:'#1a1030', fillColor:'#1a1030', fillOpacity:0.2, weight:1, opacity:0.3 };
-  }
-  if(KARYK_PREFER.includes(type)){
-    // Boost visual of hidden gem zones
-    const c = _origGetScoreColor(score, type);
-    return { ...c, fillOpacity: Math.min(0.85, (c.fillOpacity||0.4) * 1.6), weight:2.5 };
-  }
-  return _origGetScoreColor(score, type);
 }
 
 // ── Fullscreen ──
