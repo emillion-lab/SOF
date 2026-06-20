@@ -1055,26 +1055,11 @@ function updateCircles(){
         opts = {color:'transparent', fillColor:'transparent', fillOpacity:0, weight:0, opacity:0};
       }
     } else if(z.type === 'residential' || z.type === 'residential_lux'){
-      if(karykMode){
-        // Residential in Karyk: orange tint
-        opts = {color:'#f97316', fillColor:'#f97316',
-                fillOpacity: Math.min(0.70, (opts.fillOpacity||0.35)*1.8),
-                weight:2.5, opacity:0.9};
-      }
+      // Normal mode: use standard color; Karyk: handled by updateKarykMode
+      if(karykMode) return;
     } else if(karykMode){
-      const isDark = s < 1.0 || KARYK_AVOID.includes(z.type);
-      if(isDark){
-        // Dark in normal = potential in Karyk → orange
-        opts = {color:'#f97316', fillColor:'#f97316',
-                fillOpacity: Math.min(0.65, 0.25 + s*0.15),
-                weight:2, opacity:0.8};
-      } else if(KARYK_PREFER.includes(z.type)){
-        // Already preferred — keep color but boost
-        opts = {...opts, fillOpacity: Math.min(0.80,(opts.fillOpacity||0.4)*1.5), weight:2};
-      } else {
-        // Medium zones — dim slightly
-        opts = {...opts, fillOpacity:(opts.fillOpacity||0.4)*0.6, weight:1.5};
-      }
+      // Colors handled by updateKarykMode() — skip here
+      return;
     }
     circleMap[z.id]?.setStyle(opts);
   });
@@ -1172,32 +1157,44 @@ function render(hour){
   // ── КАРЪК SIDEBAR — само бронзови зони ──
   const kList=document.getElementById('karyk-list');
   if(kList && karykMode){
-    // Karyk zones = residential_karyk + hospital + residential + residential_lux
-    // Sorted by score desc, exclude avoided types
-    const karykZones = sorted.filter(([zid])=>{
-      const z=ZONES.find(x=>x.id===zid);
-      return z && (KARYK_PREFER.includes(z.type) || z.type==='residential_karyk');
-    });
+    // Rank all non-hospital zones by Karyk score
+    const karykRanked = ZONES
+      .filter(z => z.type!=='traffic' && z.type!=='hospital')
+      .map(z => ({
+        z,
+        ks: computeKarykScore(z.id, scores),
+        demand: scores[z.id]||0,
+        ev: (activeEvents[z.id]||[])[0]?.name || '',
+      }))
+      .filter(({ks}) => ks >= 1.0)
+      .sort((a,b) => b.ks - a.ks)
+      .slice(0, 20); // top 20
 
-    if(karykZones.length===0){
-      kList.innerHTML='<div style="padding:12px;color:#7c4a1a;font-size:12px;font-family:Share Tech Mono,monospace">Няма активни бронзови зони</div>';
+    if(karykRanked.length===0){
+      kList.innerHTML='<div style="padding:12px;color:#7c4a1a;font-size:12px;font-family:Share Tech Mono,monospace">🥉 Тихо навсякъде — почини, бронзовият има право</div>';
     } else {
-      kList.innerHTML=karykZones.map(([zid,score],idx)=>{
-        const z=ZONES.find(x=>x.id===zid); if(!z) return '';
-        const ev=(activeEvents[zid]||[]);
-        const sub=ev.length?ev[0].name:'';
-        const isGhost=z.type==='residential_karyk';
-        return `<div class="karyk-item" onclick="selectZoneFromList('${zid}')">
-          <div class="karyk-rank">#${idx+1}</div>
-          <div class="karyk-dot" style="
-            background:${z.type==='hospital'?'#ef4444':isGhost||z.type==='residential'||z.type==='residential_lux'?'#f97316':'#22c55e'};
-            border-color:${z.type==='hospital'?'#ff6666':isGhost||z.type==='residential'||z.type==='residential_lux'?'#ffaa55':'#55ee88'};
-          "></div>
+      kList.innerHTML = karykRanked.map(({z,ks,demand,ev},idx)=>{
+        const c = karykColor(ks);
+        const isGhost = z.type==='residential_karyk';
+        // Reason why it scores well
+        let reason = ev || '';
+        if(!reason){
+          if(isGhost)               reason='Тих квартал — малко конкуренция';
+          else if(z.type==='residential_lux') reason='Луксозен жк — богати клиенти';
+          else if(z.type==='residential')     reason='Жилищен квартал';
+          else if(z.type==='leisure')         reason='Парк/отдих';
+        }
+        return `<div class="karyk-item" onclick="selectZoneFromList('${z.id}')">
+          <div class="karyk-rank" style="color:${c.fill}">#${idx+1}</div>
+          <div class="karyk-dot" style="background:${c.fill};border-color:${c.stroke}"></div>
           <div style="flex:1;min-width:0">
-            <div class="karyk-name">${isGhost?'🥉':z.icon} ${z.name}</div>
-            ${sub?`<div class="karyk-sub">${sub}</div>`:''}
+            <div class="karyk-name">${isGhost?'🥉':z.icon} ${z.name.split('(')[0].trim()}</div>
+            <div class="karyk-sub">${c.label} · ${reason}</div>
           </div>
-          <div class="karyk-score">${score.toFixed(1)}</div>
+          <div style="text-align:right">
+            <div class="karyk-score" style="color:${c.fill}">К:${ks.toFixed(1)}</div>
+            <div style="font-size:9px;color:#5a3a10">↑${demand.toFixed(1)}</div>
+          </div>
         </div>`;
       }).join('');
     }
@@ -1670,34 +1667,97 @@ karykBtn.addEventListener('click', ()=>{
   render(currentHour);
 });
 
+// ═══════════════════════════════════════════
+// КАРЪК SCORE ALGORITHM
+// Обратна логика: добро за бронзов =
+//   висок demand + нисък конкурентен натиск
+// ═══════════════════════════════════════════
+function computeKarykScore(zid, scores){
+  const z = ZONES.find(x=>x.id===zid);
+  if(!z) return 0;
+  const demand = scores[zid] || 0;
+
+  // Base: demand е добре — клиенти има
+  let ks = demand;
+
+  // БОНУС по тип — колко нежелан е от златните
+  const typeBonus = {
+    residential_karyk: +1.5,  // невидими квартали — никой не ги знае
+    residential_lux:   +1.2,  // скъпи жк — богати клиенти, малко такси
+    residential:       +1.0,  // обикновени жк — тихи
+    hospital:          +0.8,  // болници — редовен поток, малко конкуренция
+    leisure:           +0.5,  // паркове, зоопарк
+    university:        -0.3,  // конкурентно (студентски таксита)
+    nightlife:         -0.2,  // вечер е OK, но конкурентно
+    office:            -0.5,  // офисите са на много такси радари
+    mall:              -0.8,  // молове = тълпа от таксита
+    hotel:             -0.8,  // хотели = злато тръпне там
+    airport:           -1.5,  // летище = само злато
+    transit:           -0.6,  // гари — пълно с конкуренция
+    venue:             -0.3,  // театри/арени — временна конкуренция
+    theatre:           -0.2,
+    cinema:            -0.1,
+    traffic:            0,
+  };
+  ks += (typeBonus[z.type] || 0);
+
+  // БОНУС ако зоната е "тъмна" в нормален мод (demand < 1.0)
+  // = никой не обръща внимание там, но клиенти има
+  if(demand < 1.0) ks += 0.8;
+
+  // БОНУС за отдалеченост от топ-3 конкурентни зони
+  // (летище, Сердика, Business Park)
+  const hotZones = ['airport','serdika','bpark','the_mall','hotels_ctr'];
+  if(!hotZones.includes(zid)) ks += 0.3;
+
+  // Нормализираме 0–5
+  return Math.max(0, Math.min(5, ks));
+}
+
+function karykColor(ks){
+  if(ks >= 4.0) return {fill:'#ff6b00', stroke:'#ff9040', label:'🔥 Карък ПИК'};
+  if(ks >= 3.0) return {fill:'#f97316', stroke:'#ffaa55', label:'▲ Отлично'};
+  if(ks >= 2.0) return {fill:'#fbbf24', stroke:'#ffd060', label:'Добро'};
+  if(ks >= 1.0) return {fill:'#a3a300', stroke:'#d4d400', label:'Слабо'};
+  return             {fill:'#1a1030', stroke:'#2a2050', label:'Избягвай'};
+}
+
 function updateKarykMode(){
   if(!karykMode) return;
   const {scores} = computeScores(currentHour);
 
-  // Find best "hidden gem" zone — good score but avoided type
-  const gems = ZONES
-    .filter(z => KARYK_PREFER.includes(z.type) || z.type==='residential_karyk')
-    .map(z => ({ z, s: scores[z.id]||0 }))
-    .filter(({s}) => s >= 0.8)
-    .sort((a,b) => b.s - a.s);
+  // Compute Karyk scores for all non-hospital, non-traffic zones
+  const ranked = ZONES
+    .filter(z => z.type!=='traffic' && z.type!=='hospital')
+    .map(z => ({ z, ks: computeKarykScore(z.id, scores), demand: scores[z.id]||0 }))
+    .sort((a,b) => b.ks - a.ks);
 
-  // Find worst crowded zones to avoid
-  const crowded = ZONES
-    .filter(z => KARYK_AVOID.includes(z.type))
-    .map(z => ({ z, s: scores[z.id]||0 }))
-    .sort((a,b) => b.s - a.s)
-    .slice(0,3)
-    .map(({z}) => z.name.split('(')[0].trim());
-
-  if(gems.length > 0){
-    const top = gems[0];
-    const c   = demandColor(top.s, top.z.type);
+  const top = ranked[0];
+  if(top){
+    const c = karykColor(top.ks);
     karykHint.innerHTML =
-      `🥉 Иди при <span style="color:${c.fill}">${top.z.icon} ${top.z.name.split('(')[0].trim()}</span> (${top.s.toFixed(1)})` +
-      ` · Золдните чакат на: ${crowded.join(', ')} — ти не`;
-  } else {
-    karykHint.textContent = '🥉 Тихо навсякъде — почини, бронзовият има право';
+      `🥉 <span style="color:${c.fill}">${top.z.icon} ${top.z.name.split('(')[0].trim()}</span>` +
+      ` (К:${top.ks.toFixed(1)}) — ${c.label}`;
   }
+
+  // Re-color circles by Karyk score
+  ZONES.forEach(z=>{
+    if(z.type==='traffic' || z.type==='hospital') return;
+    const ks = computeKarykScore(z.id, scores);
+    const c  = karykColor(ks);
+
+    let opts;
+    if(z.type==='residential_karyk'){
+      // Always show in Karyk
+      opts = {color:c.stroke, fillColor:c.fill,
+              fillOpacity: 0.3 + ks*0.1, weight:2.5, opacity:0.9};
+    } else {
+      opts = {color:c.stroke, fillColor:c.fill,
+              fillOpacity: Math.max(0.08, 0.15 + ks*0.1),
+              weight: ks>=3?2:1, opacity: ks>=2?0.8:0.3};
+    }
+    circleMap[z.id]?.setStyle(opts);
+  });
 }
 
 // ── Fullscreen ──
