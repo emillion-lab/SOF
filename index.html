@@ -949,6 +949,37 @@ function showZonePopup(zid){
     `).openOn(map);
 }
 
+// Hospital cross icon — size and brightness vary with score
+function makeHospitalIcon(score, active){
+  const bright = active
+    ? (score>=2.0 ? '#ff2020' : score>=1.3 ? '#ef4444' : '#cc2222')
+    : '#cc2222';
+  const size = active ? (score>=2.0 ? 26 : 22) : 18;
+  const glow = active && score>=1.3 ? `drop-shadow(0 0 5px ${bright})` : 'none';
+  return L.divIcon({
+    className:'',
+    html:`<div style="
+      width:${size}px;height:${size}px;
+      position:relative;
+      filter:${glow};
+    ">
+      <div style="
+        position:absolute;left:50%;top:20%;
+        transform:translateX(-50%);
+        width:30%;height:60%;
+        background:${bright};border-radius:2px;
+      "></div>
+      <div style="
+        position:absolute;top:50%;left:15%;
+        transform:translateY(-50%);
+        width:70%;height:28%;
+        background:${bright};border-radius:2px;
+      "></div>
+    </div>`,
+    iconSize:[size,size], iconAnchor:[size/2,size/2],
+  });
+}
+
 function buildCircles(){
   ZONES.forEach(z=>{
     if(z.type==='traffic'){
@@ -962,6 +993,30 @@ function buildCircles(){
         trafficMarkers[z.id]=marker;
         circleMap[z.id]=marker; // reuse circleMap slot
       }
+      return;
+    }
+    if(z.type==='hospital'){
+      // Hospital: DIV icon with red cross + invisible circle for click area
+      const hIcon = makeHospitalIcon(BASE[z.id]||0.5, false);
+      const hMarker = L.marker([z.lat,z.lng],{icon:hIcon, zIndexOffset:400}).addTo(map);
+      hMarker.on('click',()=>showZonePopup(z.id));
+      // Invisible circle for radius visualisation
+      const hCircle = L.circle([z.lat,z.lng],{
+        radius:z.radius, color:'#991b1b', fillColor:'#991b1b',
+        fillOpacity:0.15, weight:1, opacity:0.4
+      }).addTo(map);
+      hCircle.on('click',()=>showZonePopup(z.id));
+      circleMap[z.id] = { setStyle:(o)=>{
+        hCircle.setStyle({
+          fillColor:o.fillColor||o.fill,
+          fillOpacity:(o.fillOpacity||0.15),
+          color:o.color||o.stroke,
+          opacity:o.weight>0?0.5:0
+        });
+      }};
+      // Store marker separately to update icon
+      circleMap[z.id]._hMarker = hMarker;
+      circleMap[z.id]._hCircle = hCircle;
       return;
     }
     const circle=L.circle([z.lat,z.lng],{radius:z.radius,...getScoreColor(BASE[z.id]||0.5, z.type)});
@@ -984,8 +1039,10 @@ function updateCircles(){
     let opts = getScoreColor(s, z.type);
 
     if(z.type === 'hospital'){
-      // Hospitals: always red, only alpha changes with score — never overridden by Karyk
-      circleMap[z.id]?.setStyle(opts);
+      // Update cross icon brightness
+      const cm = circleMap[z.id];
+      if(cm?._hMarker) cm._hMarker.setIcon(makeHospitalIcon(s, true));
+      cm?.setStyle(opts); // update background circle alpha
       return;
     }
 
@@ -1005,10 +1062,18 @@ function updateCircles(){
                 weight:2.5, opacity:0.9};
       }
     } else if(karykMode){
-      if(KARYK_AVOID.includes(z.type)){
-        opts = {color:'#1a1030', fillColor:'#110820', fillOpacity:0.10, weight:1, opacity:0.15};
+      const isDark = s < 1.0 || KARYK_AVOID.includes(z.type);
+      if(isDark){
+        // Dark in normal = potential in Karyk → orange
+        opts = {color:'#f97316', fillColor:'#f97316',
+                fillOpacity: Math.min(0.65, 0.25 + s*0.15),
+                weight:2, opacity:0.8};
       } else if(KARYK_PREFER.includes(z.type)){
-        opts = {...opts, fillOpacity: Math.min(0.75,(opts.fillOpacity||0.4)*1.5), weight:2};
+        // Already preferred — keep color but boost
+        opts = {...opts, fillOpacity: Math.min(0.80,(opts.fillOpacity||0.4)*1.5), weight:2};
+      } else {
+        // Medium zones — dim slightly
+        opts = {...opts, fillOpacity:(opts.fillOpacity||0.4)*0.6, weight:1.5};
       }
     }
     circleMap[z.id]?.setStyle(opts);
