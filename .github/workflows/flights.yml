@@ -2,7 +2,10 @@ name: Flights Update
 
 on:
   workflow_dispatch:
-
+  schedule:
+    - cron: '0 5 * * *'
+    - cron: '0 10 * * *'
+    - cron: '0 14 * * *'
 permissions:
   contents: write
 
