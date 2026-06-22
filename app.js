@@ -1005,11 +1005,11 @@ function loadFlights(){
 // ═══════════════════════════════════════════════
 // WEATHER
 // ═══════════════════════════════════════════════
-const OWM_KEY='YOUR_OWM_API_KEY'; // Замени с твоя ключ от openweathermap.org
+const OWM_KEY='339bdc7369abc10c82b657fa6542d3b0'; // Замени с твоя ключ от openweathermap.org
 
 async function loadWeather(){
   const bar=document.getElementById('weather-bar');
-  if(OWM_KEY==='YOUR_OWM_API_KEY'){
+  if(OWM_KEY==='339bdc7369abc10c82b657fa6542d3b0'){
     bar.style.display='flex';
     document.getElementById('wb-desc').textContent='Добави OWM ключ за времето';
     return;
