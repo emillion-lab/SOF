@@ -533,8 +533,8 @@ window.closeNext90=function(){
 };
 
 function buildNext90(){
-  const h=new Date().getHours()+new Date().getMinutes()/60;
-  const end=h+1.5;
+  const h=currentHour; // следва slider-а
+  const end=Math.min(24,h+1.5);
   const zMap={}; ZONES.forEach(z=>{zMap[z.id]=z;});
   const upcoming=EVENTS.filter(ev=>dayMatches(ev)&&!ev._fromFlight)
     .filter(ev=>ev.endHour>h&&ev.endHour<=end)
@@ -884,6 +884,8 @@ function startGPS(){
     } else {
       userMarker.setLatLng([userLat,userLng]);
     }
+    // Update airport badge to show GPS is active
+    document.getElementById('gps-btn').title=`📍 ${userLat.toFixed(4)}, ${userLng.toFixed(4)}`;
     const {scores}=computeScores(currentHour);
     updateDirectionHint(scores);
   },()=>{btn.classList.remove('active');},{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
@@ -1048,8 +1050,18 @@ slider.addEventListener('input',()=>{
   autoTime=false; clearTimeout(slider._t);
   slider._t=setTimeout(()=>{autoTime=true;},10*60000);
   currentHour=parseFloat(slider.value);
-  document.getElementById('time-display').textContent=fmtHour(currentHour);
+  const td=document.getElementById('time-display');
+  td.textContent=fmtHour(currentHour);
+  // Показва дали е реален час или симулация
+  const realH=new Date().getHours()+new Date().getMinutes()/60;
+  const isSim=Math.abs(currentHour-realH)>0.4;
+  td.style.color = isSim ? '#f59e0b' : 'var(--cyan)';
+  td.title = isSim ? '⏱ Симулация — не е реалното време' : '';
   render(currentHour);
+  // Обновява панелите ако са отворени
+  if(bakshishOpen) buildBakshishPanel();
+  if(next90Open) buildNext90();
+  checkEventAlerts();
 });
 
 function syncTime(){
@@ -1068,7 +1080,10 @@ setInterval(syncTime,60000);
 // EVENT ALERT — 15-30 мин преди голям event
 // ═══════════════════════════════════════════════
 function checkEventAlerts(){
-  const h=new Date().getHours()+new Date().getMinutes()/60;
+  // Event alerts използват реалния час (не slider) - за реални предупреждения
+  const realH=new Date().getHours()+new Date().getMinutes()/60;
+  // Но ако slider е близо до реалния час (±30мин), показваме и preview
+  const h=Math.abs(currentHour-realH)<0.5 ? realH : currentHour;
   const upcoming=EVENTS.filter(ev=>dayMatches(ev)&&!ev._fromFlight).filter(ev=>{
     const diff=ev.endHour-h;
     return diff>=0.25&&diff<=0.5&&ev.boost>=2.0&&!alertedEvents.has(ev.name+ev.endHour);
@@ -1087,7 +1102,7 @@ function checkEventAlerts(){
 }
 setInterval(checkEventAlerts,60000);
 document.getElementById('event-alert').querySelector('.ea-close').addEventListener('click',()=>{
-  const h=new Date().getHours()+new Date().getMinutes()/60;
+  const h=currentHour;
   EVENTS.filter(ev=>dayMatches(ev)&&!ev._fromFlight).filter(ev=>{
     const diff=ev.endHour-h; return diff>=0.25&&diff<=0.5&&ev.boost>=2.0;
   }).forEach(ev=>alertedEvents.add(ev.name+ev.endHour));
@@ -1101,19 +1116,19 @@ document.getElementById('event-alert').querySelector('.ea-close').addEventListen
 
 const SHIFTS = {
   morning:   { name:"🌅 Сутрешна смяна (08–11)",    hours:[8,11],
-    tip:"Бизнес пътници, летищни трансфери, хора за прегледи. Луксозните квартали тръгват. Чужденци пристигат уморени с багаж — дават.",
+    tip:"Бизнес пътници, летищни трансфери, хора за прегледи. Луксозните квартали тръгват.",
     clientType:"бизнес / турист / пациент" },
   midday:    { name:"☀️ Обедна смяна (11–16)",       hours:[11,16],
     tip:"Туристи разхождат се, бизнес обяди, след прегледи. Хотелски клиенти с чемодан. Корпоративни карти.",
     clientType:"турист / бизнес обяд" },
   afternoon: { name:"🌆 Следобедна смяна (16–20)",  hours:[16,20],
-    tip:"Офисите излизат — уморени, благодарни. Театри и опера след 19ч — хора в добро настроение. В дъжд се удвоява.",
+    tip:"Офисите излизат. Театри и опера след 19ч. В дъжд се удвоява.",
     clientType:"офис работник / театрал" },
   evening:   { name:"🌙 Вечерна смяна (20–02)",     hours:[20,26],
-    tip:"След ресторант с вино — щедри. След концерт — емоционален пик. Хотели 5* вечер — корпоративни. Нощни клубове след 00ч.",
+    tip:"След ресторант. След концерт — емоционален пик. Хотели 5* вечер — корпоративни.",
     clientType:"ресторант гост / нощен" },
   night:     { name:"🌃 Нощна смяна (02–08)",       hours:[2,8],
-    tip:"Последни гости от клубове — дават без да броят. Летище ранни полети — стресирани, дават за бързина. Хотелски пристигания.",
+    tip:"Последни гости от клубове. Летище — ранни полети. Хотелски пристигания.",
     clientType:"нощен гост / ранен полет" },
 };
 
@@ -1156,14 +1171,14 @@ const BAKSHISH_WEIGHTS = {
 
 // Причини защо дадена зона е добра за бакшиш
 const BAKSHISH_REASONS = {
-  airport:         "✈️ Чужденци с багаж — уморени, дават",
+  airport:         "✈️ Чужденци с багаж — летищни трансфери",
   hotel:           "🏨 Бизнес гости — корпоративни карти",
-  residential_lux: "💎 Богати квартали — дават без да мислят",
-  hospital:        "🏥 Роднини на пациенти — благодарни",
+  residential_lux: "💎 Луксозни квартали — висок клас клиенти",
+  hospital:        "🏥 Болнични клиенти — редовен поток",
   theatre:         "🎭 След спектакъл — емоционален пик",
-  nightlife:       "🍷 След ресторант/клуб — щедри",
-  office:          "💼 Уморени след работа — благодарни",
-  mall:            "🛍 Натоварени с пакети — доволни",
+  nightlife:       "🍷 Ресторанти и нощен живот",
+  office:          "💼 Офис работници след работа",
+  mall:            "🛍 Пазаруващи с багаж",
   transit:         "🚌 Пристигащи с багаж — нужда от такси",
   university:      "🎓 Много на брой — компенсира с обем",
   karyk:           "🥉 Тих квартал — без конкуренция",
@@ -1211,7 +1226,7 @@ window.closeBakshish = function() {
 };
 
 function buildBakshishPanel() {
-  const h = new Date().getHours() + new Date().getMinutes()/60;
+  const h = currentHour; // следва slider-а, не реалния часовник
   const shiftKey = getCurrentShift(h);
   const shift = SHIFTS[shiftKey];
   const {scores} = computeScores(currentHour);
