@@ -1009,7 +1009,7 @@ const OWM_KEY='339bdc7369abc10c82b657fa6542d3b0'; // Замени с твоя к
 
 async function loadWeather(){
   const bar=document.getElementById('weather-bar');
-  if(OWM_KEY==='339bdc7369abc10c82b657fa6542d3b0'){
+  if(!OWM_KEY || OWM_KEY==='339bdc7369abc10c82b657fa6542d3b0'){
     bar.style.display='flex';
     document.getElementById('wb-desc').textContent='Добави OWM ключ за времето';
     return;
@@ -1256,12 +1256,8 @@ function buildBakshishPanel() {
   }).join('');
 }
 
-// Rebuild if open when time changes
-const _origRender = render;
-function render(hour) {
-  _origRender(hour);
-  if (bakshishOpen) buildBakshishPanel();
-}
+// Rebuild bakshish panel when time changes (via setInterval, not render override)
+setInterval(()=>{ if(bakshishOpen) buildBakshishPanel(); }, 60000);
 
 
 const nowH=new Date().getHours()+new Date().getMinutes()/60;
