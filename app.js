@@ -1005,11 +1005,11 @@ function loadFlights(){
 // ═══════════════════════════════════════════════
 // WEATHER
 // ═══════════════════════════════════════════════
-const OWM_KEY='339bdc7369abc10c82b657fa6542d3b0'; // Замени с твоя ключ от openweathermap.org
+const OWM_KEY='YOUR_OWM_API_KEY'; // Замени с твоя ключ от openweathermap.org
 
 async function loadWeather(){
   const bar=document.getElementById('weather-bar');
-  if(OWM_KEY==='339bdc7369abc10c82b657fa6542d3b0'){
+  if(OWM_KEY==='YOUR_OWM_API_KEY'){
     bar.style.display='flex';
     document.getElementById('wb-desc').textContent='Добави OWM ключ за времето';
     return;
@@ -1088,8 +1088,182 @@ document.getElementById('event-alert').querySelector('.ea-close').addEventListen
 });
 
 // ═══════════════════════════════════════════════
-// INIT
+// 🎩 БАКШИШ РАДАР
+// Смени и бакшиш score по тип клиент/зона/час
 // ═══════════════════════════════════════════════
+
+const SHIFTS = {
+  morning:   { name:"🌅 Сутрешна смяна (08–11)",    hours:[8,11],
+    tip:"Бизнес пътници, летищни трансфери, хора за прегледи. Луксозните квартали тръгват. Чужденци пристигат уморени с багаж — дават.",
+    clientType:"бизнес / турист / пациент" },
+  midday:    { name:"☀️ Обедна смяна (11–16)",       hours:[11,16],
+    tip:"Туристи разхождат се, бизнес обяди, след прегледи. Хотелски клиенти с чемодан. Корпоративни карти.",
+    clientType:"турист / бизнес обяд" },
+  afternoon: { name:"🌆 Следобедна смяна (16–20)",  hours:[16,20],
+    tip:"Офисите излизат — уморени, благодарни. Театри и опера след 19ч — хора в добро настроение. В дъжд се удвоява.",
+    clientType:"офис работник / театрал" },
+  evening:   { name:"🌙 Вечерна смяна (20–02)",     hours:[20,26],
+    tip:"След ресторант с вино — щедри. След концерт — емоционален пик. Хотели 5* вечер — корпоративни. Нощни клубове след 00ч.",
+    clientType:"ресторант гост / нощен" },
+  night:     { name:"🌃 Нощна смяна (02–08)",       hours:[2,8],
+    tip:"Последни гости от клубове — дават без да броят. Летище ранни полети — стресирани, дават за бързина. Хотелски пристигания.",
+    clientType:"нощен гост / ранен полет" },
+};
+
+function getCurrentShift(h) {
+  if (h >= 8  && h < 11) return 'morning';
+  if (h >= 11 && h < 16) return 'midday';
+  if (h >= 16 && h < 20) return 'afternoon';
+  if (h >= 20 || h <  2) return 'evening';
+  return 'night';
+}
+
+// Бакшиш фактори по тип зона за всяка смяна
+const BAKSHISH_WEIGHTS = {
+  morning: {
+    airport:3.5, hotel:3.0, residential_lux:2.8, hospital:2.2,
+    office:1.5, transit:2.0, mall:1.0, university:0.8,
+    theatre:0.5, cinema:0.5, nightlife:0.2, karyk:1.8,
+  },
+  midday: {
+    airport:2.8, hotel:3.2, restaurant:2.5, mall:1.8,
+    hospital:1.8, office:1.2, transit:1.5, residential_lux:1.5,
+    university:1.0, theatre:0.8, nightlife:0.5, karyk:1.2,
+  },
+  afternoon: {
+    office:3.0, theatre:3.5, airport:2.5, hotel:2.0,
+    mall:2.0, residential_lux:2.2, transit:1.8,
+    hospital:1.5, university:1.5, nightlife:1.0, karyk:2.0,
+  },
+  evening: {
+    theatre:4.0, nightlife:3.5, hotel:3.5, airport:2.8,
+    restaurant:3.8, residential_lux:2.5, mall:1.5,
+    transit:1.5, hospital:1.0, office:0.5, karyk:2.5,
+  },
+  night: {
+    nightlife:4.5, airport:4.0, hotel:3.5, transit:2.0,
+    residential_lux:2.0, theatre:0.5, mall:0.2,
+    hospital:1.5, office:0.2, karyk:1.5,
+  },
+};
+
+// Причини защо дадена зона е добра за бакшиш
+const BAKSHISH_REASONS = {
+  airport:         "✈️ Чужденци с багаж — уморени, дават",
+  hotel:           "🏨 Бизнес гости — корпоративни карти",
+  residential_lux: "💎 Богати квартали — дават без да мислят",
+  hospital:        "🏥 Роднини на пациенти — благодарни",
+  theatre:         "🎭 След спектакъл — емоционален пик",
+  nightlife:       "🍷 След ресторант/клуб — щедри",
+  office:          "💼 Уморени след работа — благодарни",
+  mall:            "🛍 Натоварени с пакети — доволни",
+  transit:         "🚌 Пристигащи с багаж — нужда от такси",
+  university:      "🎓 Много на брой — компенсира с обем",
+  karyk:           "🥉 Тих квартал — без конкуренция",
+};
+
+// Дъжд мултипликатор
+function rainMultiplier() {
+  if (weatherBoost >= 2.0) return 1.6; // дъжд
+  if (weatherBoost >= 1.0) return 1.3; // ситен дъжд
+  return 1.0;
+}
+
+function computeBakshishScore(zid, scores, shiftKey) {
+  const z = ZONES.find(x=>x.id===zid); if(!z) return 0;
+  const demand  = scores[zid] || 0;
+  const weights = BAKSHISH_WEIGHTS[shiftKey] || {};
+  const w = weights[z.type] || 0.5;
+  const rain = rainMultiplier();
+  // Score = demand × тип_тежест × дъжд_бонус
+  return Math.min(5, demand * w * rain * 0.6);
+}
+
+function bakshishColor(bs) {
+  if (bs >= 4.0) return '#ffd700'; // злато
+  if (bs >= 3.0) return '#d4af37'; // тъмно злато
+  if (bs >= 2.0) return '#c8a000'; // amber
+  if (bs >= 1.0) return '#8a7000'; // тъмен amber
+  return '#3a3000';
+}
+
+let bakshishOpen = false;
+
+document.getElementById('bakshish-btn')?.addEventListener('click', () => {
+  bakshishOpen = !bakshishOpen;
+  document.getElementById('bakshish-btn').classList.toggle('active', bakshishOpen);
+  const panel = document.getElementById('bakshish-panel');
+  if (bakshishOpen) { buildBakshishPanel(); panel.style.display = 'block'; }
+  else panel.style.display = 'none';
+});
+
+window.closeBakshish = function() {
+  bakshishOpen = false;
+  document.getElementById('bakshish-btn')?.classList.remove('active');
+  document.getElementById('bakshish-panel').style.display = 'none';
+};
+
+function buildBakshishPanel() {
+  const h = new Date().getHours() + new Date().getMinutes()/60;
+  const shiftKey = getCurrentShift(h);
+  const shift = SHIFTS[shiftKey];
+  const {scores} = computeScores(currentHour);
+  const rain = rainMultiplier();
+
+  // Shift banner
+  document.getElementById('bp-shift-label').textContent = shift.clientType;
+  document.getElementById('bp-shift-name').textContent  = shift.name;
+  let tip = shift.tip;
+  if (rain > 1.0) tip = `🌧 ДЪЖД БОНУС ×${rain.toFixed(1)}! ` + tip;
+  document.getElementById('bp-shift-tip').textContent = tip;
+
+  // Rank all zones by bakshish score
+  const ranked = ZONES
+    .filter(z => z.type !== 'traffic')
+    .map(z => ({
+      z,
+      bs: computeBakshishScore(z.id, scores, shiftKey),
+      demand: scores[z.id] || 0,
+    }))
+    .filter(({bs}) => bs >= 0.5)
+    .sort((a,b) => b.bs - a.bs)
+    .slice(0, 15);
+
+  const list = document.getElementById('bakshish-list');
+  if (!ranked.length) {
+    list.innerHTML = '<div style="padding:14px;color:#6a5000;font-family:Share Tech Mono,monospace">Няма активни бакшиш зони в момента</div>';
+    return;
+  }
+
+  list.innerHTML = ranked.map(({z, bs, demand}, i) => {
+    const color = bakshishColor(bs);
+    const reason = BAKSHISH_REASONS[z.type] || '🚖 Потенциален клиент';
+    const rainTxt = rain > 1.0 ? ` 🌧×${rain.toFixed(1)}` : '';
+    const stars = '⭐'.repeat(Math.min(5, Math.round(bs)));
+    return `<div class="bp-item" onclick="(function(){map.setView([${z.lat},${z.lng}],15);showZonePopup('${z.id}');closeBakshish()})()">
+      <div class="bp-rank">#${i+1}</div>
+      <div class="bp-dot" style="background:${color};box-shadow:0 0 5px ${color}66"></div>
+      <div class="bp-info">
+        <div class="bp-name">${z.icon} ${z.name.split('(')[0].trim()}</div>
+        <div class="bp-why">${reason}${rainTxt}</div>
+        <div style="font-size:9px;color:#5a4000;margin-top:1px">${stars}</div>
+      </div>
+      <div class="bp-score-wrap">
+        <div class="bp-score" style="color:${color}">${bs.toFixed(1)}</div>
+        <div class="bp-multiplier">demand ${demand.toFixed(1)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Rebuild if open when time changes
+const _origRender = render;
+function render(hour) {
+  _origRender(hour);
+  if (bakshishOpen) buildBakshishPanel();
+}
+
+
 const nowH=new Date().getHours()+new Date().getMinutes()/60;
 currentHour=Math.min(24,Math.max(6,Math.round(nowH*2)/2));
 slider.value=currentHour;
