@@ -861,7 +861,65 @@ body.map-fullscreen #fs-btn  { bottom:70px; }
 .zone-sub   { font-size:11px; color:var(--muted); }
 .zone-score { font-family:'Share Tech Mono',monospace; font-size:15px; font-weight:bold; }
 
-/* ── КАРЪК SIDEBAR ── */
+/* ── БАКШИШ ПАНЕЛ ── */
+#bakshish-btn {
+  position:fixed; right:12px; bottom:290px; z-index:1500;
+  width:44px; height:44px; border-radius:50%;
+  background:#1a1200; border:2px solid #d4af37;
+  color:#d4af37; font-size:20px; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 10px #d4af3744;
+  transition:all .3s;
+}
+#bakshish-btn.active { background:#2a2000; border-color:#ffd700; box-shadow:0 0 16px #ffd70066; }
+body.map-fullscreen #bakshish-btn { display:none; }
+
+#bakshish-panel {
+  display:none;
+  position:fixed; top:0; left:0; right:0; z-index:2600;
+  background:#0d0e00f8;
+  border-bottom:2px solid #d4af37;
+  max-height:75vh; overflow-y:auto;
+  backdrop-filter:blur(8px);
+}
+#bakshish-panel .bp-header {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 14px;
+  font-family:'Share Tech Mono',monospace;
+  font-size:12px; color:#d4af37;
+  border-bottom:1px solid #3a3000;
+  position:sticky; top:0; background:#0d0e00f8; z-index:1;
+}
+#bakshish-panel .bp-shift {
+  font-size:11px; color:#a08000; margin-left:auto;
+  font-family:'Share Tech Mono',monospace;
+}
+#bakshish-panel .bp-close {
+  cursor:pointer; color:#6a5000; font-size:18px; padding:0 4px; margin-left:8px;
+}
+#bakshish-panel .bp-shift-banner {
+  padding:8px 14px;
+  background:#1a1500;
+  border-bottom:1px solid #3a3000;
+  font-family:'Share Tech Mono',monospace;
+  font-size:11px;
+}
+#bakshish-panel .bp-shift-name { font-size:14px; color:#ffd700; margin-bottom:3px; }
+#bakshish-panel .bp-shift-tip  { font-size:10px; color:#8a7000; line-height:1.5; }
+.bp-item {
+  display:flex; align-items:center; gap:10px;
+  padding:9px 14px; border-bottom:1px solid #1a1500;
+  cursor:pointer; transition:background .12s;
+}
+.bp-item:hover { background:#1a1500; }
+.bp-rank { font-family:'Share Tech Mono',monospace; font-size:11px; color:#6a5000; min-width:24px; }
+.bp-dot  { width:11px; height:11px; border-radius:50%; flex-shrink:0; }
+.bp-info { flex:1; min-width:0; }
+.bp-name { font-size:13px; color:#e8d080; }
+.bp-why  { font-size:10px; color:#8a7000; margin-top:2px; line-height:1.4; }
+.bp-score-wrap { text-align:right; }
+.bp-score { font-family:'Share Tech Mono',monospace; font-size:15px; font-weight:bold; color:#d4af37; }
+.bp-multiplier { font-size:9px; color:#6a5000; } */
 #karyk-sidebar {
   display:none;
   background:#100808;
@@ -1103,8 +1161,23 @@ body.map-fullscreen #next90-btn { display:none; }
 </div>
 <button id="next90-btn" title="Следващи 90 минути">⏱</button>
 <button id="gps-btn" title="GPS локация">📍</button>
+<button id="bakshish-btn" title="Бакшиш радар">🎩</button>
 
 <!-- Next 90 min panel -->
+<!-- БАКШИШ ПАНЕЛ -->
+<div id="bakshish-panel">
+  <div class="bp-header">
+    🎩 БАКШИШ РАДАР
+    <span class="bp-shift" id="bp-shift-label">—</span>
+    <span class="bp-close" onclick="closeBakshish()">✕</span>
+  </div>
+  <div class="bp-shift-banner">
+    <div class="bp-shift-name" id="bp-shift-name">—</div>
+    <div class="bp-shift-tip"  id="bp-shift-tip">—</div>
+  </div>
+  <div id="bakshish-list"></div>
+</div>
+
 <div id="next90-panel">
   <div class="n90-header">
     ⏱ СЛЕДВАЩИ 90 МИНУТИ
