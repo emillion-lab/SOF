@@ -1,78 +1,77 @@
 import json, urllib.request, os
 from datetime import datetime, timezone, timedelta
 
-API_KEY = os.environ.get('API_KEY', '')
+API_KEY = os.environ.get("API_KEY", "")
 if not API_KEY:
-    print("No API_KEY")
-    exit(0)
+    print("No API_KEY"); exit(0)
 
 BASE = f"http://api.aviationstack.com/v1/flights?access_key={API_KEY}&arr_iata=SOF&limit=100"
 
-all_flights = []
-total = 0
+# Load existing cache to merge with
+try:
+    with open("flight-cache.json") as f:
+        existing = json.load(f)
+    existing_flights = existing.get("data", [])
+    print(f"Existing cache: {len(existing_flights)} flights")
+except:
+    existing_flights = []
 
-# Fetch 3 pages (300 flights) to cover full day
-for offset in [0, 100, 200]:
+# Fetch new flights (current + upcoming)
+new_flights = []
+for offset in [0, 100]:
     try:
-        url = f"{BASE}&offset={offset}"
-        req = urllib.request.Request(url)
+        req = urllib.request.Request(f"{BASE}&offset={offset}")
         with urllib.request.urlopen(req, timeout=20) as r:
             d = json.loads(r.read())
-        flights = d.get('data', [])
-        if not flights:
-            print(f"offset={offset}: no data — {str(d)[:100]}")
-            break
-        all_flights.extend(flights)
-        total = d.get('pagination', {}).get('total', total)
-        print(f"offset={offset}: {len(flights)} flights (total: {total})")
+        fl = d.get("data", [])
+        if not fl: break
+        new_flights.extend(fl)
+        print(f"offset={offset}: {len(fl)} flights")
     except Exception as e:
-        print(f"offset={offset}: error {e}")
-        break
+        print(f"offset={offset}: {e}"); break
 
-# Filter only arrivals for today and tomorrow Sofia time
+# Merge: new flights override existing for same flight+time key
 sofia_now = datetime.now(timezone(timedelta(hours=3)))
-today = sofia_now.strftime('%Y-%m-%d')
-tomorrow = (sofia_now + timedelta(days=1)).strftime('%Y-%m-%d')
+today = sofia_now.strftime("%Y-%m-%d")
+cutoff = (sofia_now - timedelta(hours=2)).strftime("%Y-%m-%d %H:%M")
 
-today_flights = []
-for f in all_flights:
-    sched = (f.get('arrival') or {}).get('scheduled') or ''
+def flight_key(f):
+    iata = (f.get("flight") or {}).get("iata") or ""
+    sched = (f.get("arrival") or {}).get("scheduled") or ""
+    return iata + "|" + sched
+
+# Start with existing, update with new
+merged = {flight_key(f): f for f in existing_flights}
+for f in new_flights:
+    merged[flight_key(f)] = f  # new data overrides old
+
+# Filter to today only and not too old
+final = []
+for f in merged.values():
+    sched = (f.get("arrival") or {}).get("scheduled") or ""
     if not sched: continue
     date_part = sched[:10]
-    if date_part in [today, tomorrow]:
-        today_flights.append(f)
+    # Keep today and tomorrow
+    if date_part in [today, (sofia_now + timedelta(days=1)).strftime("%Y-%m-%d")]:
+        final.append(f)
 
-# If no today flights, keep all (maybe timezone issue)
-if not today_flights:
-    print(f"No flights for {today}/{tomorrow} — keeping all {len(all_flights)}")
-    today_flights = all_flights
-
-# Deduplicate
-seen = set()
-unique = []
-for f in today_flights:
-    key = ((f.get('flight') or {}).get('iata') or '') + str((f.get('arrival') or {}).get('scheduled') or '')
-    if key not in seen:
-        seen.add(key)
-        unique.append(f)
-
-# Sort by Sofia arrival time
+# Sort by Sofia arrival
 def sofia_sort(f):
-    s = (f.get('arrival') or {}).get('scheduled') or ''
-    if not s: return '99:99'
+    s = (f.get("arrival") or {}).get("scheduled") or ""
+    if not s: return "99:99"
     return f"{(int(s[11:13])+3)%24:02d}:{s[14:16]}"
 
-unique.sort(key=sofia_sort)
+final.sort(key=sofia_sort)
 
-with open('flight-cache.json', 'w') as f:
-    json.dump({"pagination": {"total": total, "count": len(unique)}, "data": unique}, f, ensure_ascii=False)
+with open("flight-cache.json", "w") as f:
+    json.dump({"pagination": {"count": len(final)}, "data": final}, f, ensure_ascii=False)
 
-print(f"\nSaved {len(unique)} flights for {today}")
+print(f"\nSaved {len(final)} flights for {today}")
 hrs = {}
-for fl in unique:
-    s = (fl.get('arrival') or {}).get('scheduled') or ''
+for fl in final:
+    s = (fl.get("arrival") or {}).get("scheduled") or ""
     if s:
         h = (int(s[11:13])+3)%24
         hrs[h] = hrs.get(h,0)+1
 for h in sorted(hrs):
-    print(f"  {h:02d}:xx — {hrs[h]} {'█'*hrs[h]}")
+    print(f"  {h:02d}:xx — {hrs[h]} {"█"*min(hrs[h],15)}")
