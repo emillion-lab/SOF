@@ -1,6 +1,8 @@
 name: Flights Update
 
 on:
+  schedule:
+    - cron: "0 3 * * *"
   workflow_dispatch:
 
 permissions:
@@ -9,19 +11,31 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Fetch flights
+        env:
+          API_KEY: ${{ secrets.API_KEY }}
         run: |
-          curl "http://api.aviationstack.com/v1/flights?access_key=${{ secrets.API_KEY }}&arr_iata=SOF" > flight-cache.json
+          if [ -z "$API_KEY" ]; then
+            echo "No API_KEY - keeping cache"
+            exit 0
+          fi
+          curl -s "http://api.aviationstack.com/v1/flights?access_key=${API_KEY}&arr_iata=SOF&limit=100" -o flight-cache-new.json
+          python3 -c "import json; d=json.load(open('flight-cache-new.json')); print(len(d.get('data',[])))" && mv flight-cache-new.json flight-cache.json || echo "Bad JSON"
+
+      - name: Sync to BAK
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 .github/sync_bak.py
 
       - name: Commit
         run: |
-          git config user.name "bot"
+          git config user.name "FlightBot"
           git config user.email "bot@github.com"
           git add flight-cache.json
-          git commit -m "update flights" || echo "no changes"
+          git diff --cached --quiet || git commit -m "flights: $(date -u +%Y-%m-%d)"
           git push
-#test
