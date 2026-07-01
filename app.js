@@ -981,7 +981,7 @@ function updateAirportBadge(){
   else                              {b.textContent='✈ ОФЛАЙН';  b.style.color='#ef4444';}
 }
 
-function loadFlights(){
+function loadFlights(); loadBuses(){
   fetch('flight-cache.json')
     .then(r=>{if(!r.ok)throw 0;return r.json();})
     .then(data=>{
@@ -1112,6 +1112,99 @@ document.getElementById('event-alert').querySelector('.ea-close').addEventListen
 // ═══════════════════════════════════════════════
 // 🎩 БАКШИШ РАДАР
 // Смени и бакшиш score по тип клиент/зона/час
+
+// ═══════════════════════════════════════════════
+// BUS SCHEDULE
+// ═══════════════════════════════════════════════
+let busSchedule = null;
+
+async function loadBuses(){
+  try{
+    const r = await fetch('bus-schedule.json');
+    if(!r.ok) return;
+    busSchedule = await r.json();
+    renderBusPanel();
+    addBusZones();
+  }catch(e){ console.warn('Bus schedule:', e.message); }
+}
+
+function getNextBuses(routeId, count=5){
+  if(!busSchedule) return [];
+  const route = busSchedule.routes.find(r => r.id === routeId);
+  if(!route) return [];
+  const now = new Date();
+  const nowMin = now.getHours()*60 + now.getMinutes();
+  const results = [];
+  for(const dep of route.departures){
+    const [h,m] = dep.split(':').map(Number);
+    const depMin = h*60+m;
+    const diff = depMin - nowMin;
+    if(diff >= -10){ // include buses that left up to 10min ago (may still be picking up)
+      const arrMin = depMin + route.duration_min;
+      results.push({
+        dep, depMin,
+        arr: `${Math.floor(arrMin/60).toString().padStart(2,'0')}:${(arrMin%60).toString().padStart(2,'0')}`,
+        diffMin: diff,
+        route
+      });
+    }
+    if(results.length >= count) break;
+  }
+  return results;
+}
+
+function renderBusPanel(){
+  // Find or create bus panel in sidebar
+  let panel = document.getElementById('bus-panel');
+  if(!panel){
+    const sidebar = document.getElementById('sidebar') || document.querySelector('.sidebar') || document.querySelector('.panel-list');
+    if(!sidebar) return;
+    panel = document.createElement('div');
+    panel.id = 'bus-panel';
+    panel.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin:8px 0;';
+    sidebar.appendChild(panel);
+  }
+
+  const nextPlov = getNextBuses('plovdiv_sofia', 4);
+  const nextSof  = getNextBuses('sofia_plovdiv', 3);
+
+  let html = '<div style="font-size:14px;font-weight:800;color:var(--cyan);margin-bottom:8px">🚌 Автобуси</div>';
+
+  if(nextPlov.length){
+    html += '<div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:4px">Пловдив → София (пристигане)</div>';
+    for(const b of nextPlov){
+      const urgency = b.diffMin < 0 ? 'color:#ef4444' : b.diffMin < 30 ? 'color:#f59e0b;font-weight:800' : 'color:var(--text)';
+      const label = b.diffMin < 0 ? `тръгнал (пристига ~${b.arr})` :
+                    b.diffMin < 60 ? `след ${b.diffMin} мин → пристига ${b.arr}` :
+                    `${b.dep} → пристига ${b.arr}`;
+      html += `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px">
+        <span>🚌 ${b.dep}</span>
+        <span style="${urgency}">${label}</span>
+      </div>`;
+    }
+  }
+
+  html += '<div style="margin-top:8px;font-size:11px;color:var(--muted)">Expo Center спирка: ~100 мин след тръгване от Пловдив</div>';
+  panel.innerHTML = html;
+
+  // Update every minute
+  setTimeout(renderBusPanel, 60000);
+}
+
+function addBusZones(){
+  if(!busSchedule || !window.map) return;
+  // Add Expo Center bus stop as zone marker
+  const expoStop = {lat:42.6543, lng:23.4012, name:'🚌 Expo Center (автобусна спирка)'};
+  const icon = L.divIcon({
+    className:'',
+    html:`<div style="background:#0284c7;color:#fff;border-radius:6px;padding:3px 7px;font-size:12px;font-weight:800;white-space:nowrap;box-shadow:0 2px 6px #0004">🚌 Expo</div>`,
+    iconAnchor:[25,15]
+  });
+  L.marker([expoStop.lat, expoStop.lng], {icon})
+    .addTo(window.map)
+    .bindPopup(`<b style="color:#0284c7">🚌 Expo Center</b><br><small>Спирка Пловдив↔София</small>`);
+}
+
 // ═══════════════════════════════════════════════
 
 const SHIFTS = {
@@ -1292,7 +1385,7 @@ buildCurve();
 buildCircles();
 buildTicker();
 render(currentHour);
-loadFlights();
+loadFlights(); loadBuses();
 loadConfig().then(()=>{ loadWeather(); setInterval(loadWeather,10*60000); });
 checkEventAlerts();
 geocodeZones();     // async — прецизира координатите от OSM
