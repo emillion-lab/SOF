@@ -18,15 +18,10 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Fetch all Sofia arrivals
+      - name: Fetch Sofia arrivals
         env:
           API_KEY: ${{ secrets.API_KEY }}
-        run: |
-          if [ -z "$API_KEY" ]; then echo "No API_KEY"; exit 0; fi
-          TODAY=$(date -u +%Y-%m-%d)
-          curl -sf "http://api.aviationstack.com/v1/flights?access_key=${API_KEY}&arr_iata=SOF&flight_date=${TODAY}&limit=100&offset=0" -o page1.json || echo "{}" > page1.json
-          curl -sf "http://api.aviationstack.com/v1/flights?access_key=${API_KEY}&arr_iata=SOF&flight_date=${TODAY}&limit=100&offset=100" -o page2.json || echo "{}" > page2.json
-          python3 .github/merge_flights.py
+        run: python3 .github/merge_flights.py
 
       - name: Sync to BAK
         env:
