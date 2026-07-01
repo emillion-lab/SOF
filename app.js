@@ -542,7 +542,7 @@ function buildNext90(){
   const list=document.getElementById('next90-list');
   if(!list) return;
   if(!upcoming.length){
-    list.innerHTML='<div style="padding:14px;color:var(--muted);font-size:12px">Няма значими events в следващите 90 мин</div>';
+    list.innerHTML='<div style="padding:14px;color:var(--muted);font-size:15px">Няма значими events в следващите 90 мин</div>';
     return;
   }
   list.innerHTML=upcoming.map(ev=>{
@@ -563,7 +563,7 @@ function buildNext90(){
 
 // ═══════════════════════════════════════════════
 const map = L.map('map', {center:[42.698,23.322], zoom:13, zoomControl:true, attributionControl:false});
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
   maxZoom:19, subdomains:['a','b','c','d']
 }).addTo(map);
 document.getElementById('map').style.filter='brightness(0.85) saturate(0.6)';
@@ -673,27 +673,27 @@ function showZonePopup(zid) {
   if (isTraffic&&ti) {
     const active=s>=1.5;
     const sc=active?'#ef4444':'#22c55e';
-    evHtml=`<div style="background:${active?'#1a0808':'#081a0d'};border:1px solid ${sc};border-radius:5px;padding:5px 8px;margin-bottom:5px;color:${sc};font-size:12px;font-weight:600">${active?'🔴 ЗАДРЪСТЕНО СЕГА':'🟢 В МОМЕНТА СВОБОДНО'}</div>
-      <div style="font-size:12px;color:#a855f7;margin-bottom:3px">🚦 ${ti.jamDir}</div>
-      <div style="font-size:12px;color:#00e5ff;margin-bottom:5px">✅ Свободно: ${ti.freeDir}</div>
-      ${active?`<div style="background:#1a0a2e;border:1px solid #a855f7;border-radius:5px;padding:5px 8px;font-size:12px;color:#d08dff;margin-bottom:4px">💡 Карай ${ti.freeArrow} обратно — стигаш по-бързо!</div>`:''}
-      <div style="font-size:10px;color:#4a6080">⏰ Пик: ${ti.time}</div>`;
+    evHtml=`<div style="background:${active?'#1a0808':'#081a0d'};border:1px solid ${sc};border-radius:5px;padding:5px 8px;margin-bottom:5px;color:${sc};font-size:15px;font-weight:600">${active?'🔴 ЗАДРЪСТЕНО СЕГА':'🟢 В МОМЕНТА СВОБОДНО'}</div>
+      <div style="font-size:15px;color:#a855f7;margin-bottom:3px">🚦 ${ti.jamDir}</div>
+      <div style="font-size:15px;color:#00e5ff;margin-bottom:5px">✅ Свободно: ${ti.freeDir}</div>
+      ${active?`<div style="background:#1a0a2e;border:1px solid #a855f7;border-radius:5px;padding:5px 8px;font-size:15px;color:#d08dff;margin-bottom:4px">💡 Карай ${ti.freeArrow} обратно — стигаш по-бързо!</div>`:''}
+      <div style="font-size:14px;color:#4a6080">⏰ Пик: ${ti.time}</div>`;
   } else {
     const evs=(activeEvents[zid]||[]).slice(0,3);
     evHtml=evs.length?evs.map(e=>`<div>• ${e.name}</div>`).join(''):'<div style="color:#4a6080">Базово търсене</div>';
   }
   const pct=Math.min(100,(s/4.5)*100);
   L.popup({maxWidth:240}).setLatLng([z.lat,z.lng]).setContent(`
-    <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#00e5ff;margin-bottom:5px">${z.icon} ${z.name}</div>
-    <div style="font-size:18px;font-weight:bold;color:${c.fill};margin-bottom:4px">${s.toFixed(1)} <span style="font-size:12px">${label}</span></div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:16px;color:#00e5ff;margin-bottom:5px">${z.icon} ${z.name}</div>
+    <div style="font-size:18px;font-weight:bold;color:${c.fill};margin-bottom:4px">${s.toFixed(1)} <span style="font-size:15px">${label}</span></div>
     <div style="height:4px;background:#182d47;border-radius:2px;margin:5px 0"><div style="width:${pct}%;height:100%;background:${c.fill};border-radius:2px"></div></div>
-    <div style="font-size:11px;color:#c8daf0;margin:6px 0">${evHtml}</div>
-    ${!isTraffic?`<button onclick="startNav('${zid}')" style="width:100%;background:#00e5ff;color:#000;border:none;border-radius:4px;padding:5px;font-size:11px;cursor:pointer;margin-top:4px">🧭 Навигирай</button>
+    <div style="font-size:15px;color:#c8daf0;margin:6px 0">${evHtml}</div>
+    ${!isTraffic?`<button onclick="startNav('${zid}')" style="width:100%;background:#00e5ff;color:#000;border:none;border-radius:4px;padding:5px;font-size:15px;cursor:pointer;margin-top:4px">🧭 Навигирай</button>
     <div style="display:flex;gap:5px;margin-top:5px">
       <a href="https://waze.com/ul?q=${encodeURIComponent(z.wazeName||z.name)}&navigate=yes" target="_blank"
-         style="flex:1;text-align:center;font-size:10px;color:#00e5ff;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;text-decoration:none">🚗 Waze</a>
+         style="flex:1;text-align:center;font-size:14px;color:#00e5ff;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;text-decoration:none">🚗 Waze</a>
       <a href="https://www.google.com/maps?q=${z.lat},${z.lng}" target="_blank"
-         style="flex:1;text-align:center;font-size:10px;color:#4a6080;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;text-decoration:none">📍 Google</a>
+         style="flex:1;text-align:center;font-size:14px;color:#4a6080;padding:4px;background:#0d1929;border:1px solid #182d47;border-radius:4px;text-decoration:none">📍 Google</a>
     </div>`:''}
   `).openOn(map);
 }
@@ -801,7 +801,7 @@ function render(hour) {
         </div>
         <div style="text-align:right">
           <div class="karyk-score" style="color:${c.fill}">К:${ks.toFixed(1)}</div>
-          <div style="font-size:9px;color:#5a3a10">↑${scores[z.id]?.toFixed(1)||'0.0'}</div>
+          <div style="font-size:14px;color:#5a3a10">↑${scores[z.id]?.toFixed(1)||'0.0'}</div>
         </div>
       </div>`;
     }).join('');
@@ -860,7 +860,7 @@ function updateDirectionHint(scores) {
   panel.style.display='block';
   panel.style.borderTopColor=c.fill;
   if(window._dirLine) map.removeLayer(window._dirLine);
-  window._dirLine=L.polyline([[userLat,userLng],[best.lat,best.lng]],{color:c.fill,weight:2,dashArray:'6,4',opacity:0.6}).addTo(map);
+  window._dirLine=L.polyline([[userLat,userLng],[best.lat,best.lng]],{color:c.fill,weight:2,dashArray:'6,4',opacity:0.9}).addTo(map);
 }
 
 function startGPS(){
@@ -1268,7 +1268,7 @@ function buildBakshishPanel() {
       <div class="bp-info">
         <div class="bp-name">${z.icon} ${z.name.split('(')[0].trim()}</div>
         <div class="bp-why">${reason}${rainTxt}</div>
-        <div style="font-size:9px;color:#5a4000;margin-top:1px">${stars}</div>
+        <div style="font-size:14px;color:#5a4000;margin-top:1px">${stars}</div>
       </div>
       <div class="bp-score-wrap">
         <div class="bp-score" style="color:${color}">${bs.toFixed(1)}</div>
