@@ -1,10 +1,11 @@
 name: Flights Update
 
+# 25.09.2026: cron-ът е махнат. Това е старият AviationStack скрейпър —
+# грешките се поглъщат, затова рънът беше зелен, а данните стояха.
+# "Sync to BAK" никога не е можел да мине (GITHUB_TOKEN няма право в BAK).
+# BAK тегли полетите сам през mvr-proxy/AeroDataBox (BAK/flights.yml).
+# Остава само ръчно пускане.
 on:
-  schedule:
-    - cron: "0 5 * * *"
-    - cron: "0 10 * * *"
-    - cron: "0 15 * * *"
   workflow_dispatch:
 
 permissions:
